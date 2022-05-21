@@ -9,8 +9,8 @@ pub enum CrowdfundingError {
     #[msg("CHRT token account should be provided for every top donor")]
     CHRTNotProvided,
     /// 6002 0x1772
-    #[msg("Platform's limit of liquidations is exceeded")]
-    LiquidationsLimit,
+    #[msg("Platform's limit of campaigns is reached")]
+    CampaignsLimit,
     /// 6003 0x1773
     #[msg("Referring yourself is not allowed")]
     CannotReferYourself,

@@ -3,7 +3,6 @@ pub use crate::instructions::{
     start_campaign::*, stop_campaign::*, withdraw_donations::*, withdraw_fees::*,
 };
 
-pub mod claim_liquidated_sol;
 pub mod donate;
 pub mod incentivize;
 pub mod initialize;

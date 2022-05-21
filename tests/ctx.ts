@@ -15,7 +15,7 @@ export class Context {
   platform: PublicKey;
   platformAuthority: Keypair;
   feeVault: PublicKey;
-  liquidatedSolVault: PublicKey;
+  solVault: PublicKey;
 
   chrtMint: PublicKey;
 
@@ -51,8 +51,8 @@ export class Context {
       [Buffer.from("fee_vault")],
       this.program.programId
     );
-    this.liquidatedSolVault = await findPDA(
-      [Buffer.from("liquidated_sol_vault")],
+    this.solVault = await findPDA(
+      [Buffer.from("sol_vault")],
       this.program.programId
     );
     this.chrtMint = await findPDA(
@@ -92,16 +92,6 @@ export class Context {
     );
   }
 
-  async solVault(campaignId: number): Promise<PublicKey> {
-    return await findPDA(
-      [
-        Buffer.from("sol_vault"),
-        new BN(campaignId).toArrayLike(Buffer, "le", 2),
-      ],
-      this.program.programId
-    );
-  }
-
   async feeExemptionVault(campaignId: number): Promise<PublicKey> {
     return await findPDA(
       [
@@ -124,5 +114,56 @@ export class Context {
 
   async chrtATA(owner: PublicKey): Promise<TokenAccount> {
     return await findATA(this, owner, this.chrtMint);
+  }
+
+  async campaigns() {
+    const platform = await this.program.account.platform.fetch(this.platform);
+
+    // @ts-ignore
+    return platform.campaigns.map((c: any) => {
+      c.donationsSum = c.donationsSum.toNumber();
+      c.withdrawnSum = c.withdrawnSum.toNumber();
+      return c;
+    });
+  }
+
+  async platformTop() {
+    const platform = await this.program.account.platform.fetch(this.platform);
+
+    // @ts-ignore
+    return platform.platformTop.map((d: any) => {
+      d.donationsSum = d.donationsSum.toNumber();
+      return d;
+    });
+  }
+
+  async seasonalTop() {
+    const platform = await this.program.account.platform.fetch(this.platform);
+
+    // @ts-ignore
+    return platform.seasonalTop.map((d: any) => {
+      d.donationsSum = d.donationsSum.toNumber();
+      return d;
+    });
+  }
+
+  async campaignTop(campaignId: number) {
+    const campaign = await this.program.account.campaign.fetch(
+      await this.campaign(campaignId)
+    );
+
+    // @ts-ignore
+    return campaign.campaignTop.map((d: any) => {
+      d.donationsSum = d.donationsSum.toNumber();
+      return d;
+    });
+  }
+
+  async solVaultBalance() {
+    return (await this.connection.getBalance(this.solVault)) - 890880;
+  }
+
+  async feeVaultBalance() {
+    return (await this.connection.getBalance(this.feeVault)) - 890880;
   }
 }

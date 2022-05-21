@@ -1,6 +1,8 @@
-use super::claim_liquidated_sol::*;
-use crate::{state::*, utils::*};
-use anchor_lang::prelude::*;
+use crate::state::*;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, system_instruction},
+};
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
@@ -8,24 +10,19 @@ pub struct StopCampaign<'info> {
     #[account(mut, seeds = [b"platform"], bump = platform.bump)]
     platform: Account<'info, Platform>,
     /// CHECK:
-    #[account(mut, seeds = [b"liquidated_sol_vault"], bump = platform.bump_liquidated_sol_vault)]
-    liquidated_sol_vault: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"sol_vault"], bump = platform.bump_sol_vault)]
+    sol_vault: UncheckedAccount<'info>,
     #[account(mut, seeds = [b"chrt_mint"], bump = platform.bump_chrt_mint)]
     chrt_mint: Account<'info, Mint>,
     #[account(
+        mut,
+        close = campaign_authority,
         seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
         bump = campaign.bump,
     )]
     campaign: Account<'info, Campaign>,
     #[account(mut, address = campaign.authority)]
     campaign_authority: Signer<'info>,
-    /// CHECK:
-    #[account(
-        mut,
-        seeds = [b"sol_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_sol_vault,
-    )]
-    sol_vault: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
@@ -39,6 +36,7 @@ pub struct StopCampaign<'info> {
     )]
     liquidation_vault: Account<'info, TokenAccount>,
     token_program: Program<'info, Token>,
+    system_program: Program<'info, System>,
 }
 
 fn close_chrt_vaults(ctx: &Context<StopCampaign>) -> Result<()> {
@@ -75,20 +73,28 @@ fn close_chrt_vaults(ctx: &Context<StopCampaign>) -> Result<()> {
 }
 
 pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
-    claim_liquidated_sol(
-        &ctx.accounts.platform,
-        &ctx.accounts.liquidated_sol_vault,
-        &mut ctx.accounts.campaign,
-        &ctx.accounts.sol_vault,
-    )?;
-
-    ctx.accounts.platform.sum_of_active_campaign_donations -= ctx.accounts.campaign.donations_sum;
-
     close_chrt_vaults(&ctx)?;
-    transfer_all_lamports(
-        &ctx.accounts.sol_vault.to_account_info(),
-        &ctx.accounts.campaign_authority.to_account_info(),
+
+    let signers_seeds: &[&[&[u8]]] = &[&[b"sol_vault", &[ctx.accounts.platform.bump_sol_vault]]];
+    let mut campaign = (ctx.accounts.platform.campaigns)
+        .get_mut(ctx.accounts.campaign.id as usize)
+        .unwrap();
+    invoke_signed(
+        &system_instruction::transfer(
+            ctx.accounts.sol_vault.key,
+            ctx.accounts.campaign_authority.key,
+            campaign.donations_sum - campaign.withdrawn_sum,
+        ),
+        &[
+            ctx.accounts.sol_vault.to_account_info(),
+            ctx.accounts.campaign_authority.to_account_info(),
+        ],
+        signers_seeds,
     )?;
+    campaign.withdrawn_sum = campaign.donations_sum;
+
+    campaign.is_closed = true;
+    ctx.accounts.platform.sum_of_active_campaign_donations -= campaign.donations_sum;
 
     emit!(StopCampaignEvent {});
 

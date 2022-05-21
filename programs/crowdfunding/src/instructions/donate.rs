@@ -1,4 +1,3 @@
-use super::claim_liquidated_sol::*;
 use crate::{error::*, state::*, CHRT_DECIMALS};
 use anchor_lang::{
     prelude::*,
@@ -16,21 +15,14 @@ pub struct Donate<'info> {
     #[account(mut, seeds = [b"fee_vault"], bump = platform.bump_fee_vault)]
     fee_vault: UncheckedAccount<'info>,
     /// CHECK:
-    #[account(mut, seeds = [b"liquidated_sol_vault"], bump = platform.bump_liquidated_sol_vault)]
-    liquidated_sol_vault: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"sol_vault"], bump = platform.bump_sol_vault)]
+    sol_vault: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
         bump = campaign.bump,
     )]
     campaign: Account<'info, Campaign>,
-    /// CHECK:
-    #[account(
-        mut,
-        seeds = [b"sol_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_sol_vault,
-    )]
-    sol_vault: UncheckedAccount<'info>,
     #[account(
         seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
         bump = campaign.bump_fee_exemption_vault,
@@ -70,7 +62,7 @@ pub struct DonateWithReferer<'info> {
 }
 
 fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    accounts.campaign.donations_sum += lamports;
+    (accounts.platform.campaigns)[accounts.campaign.id as usize].donations_sum += lamports;
     accounts.platform.sum_of_all_donations += lamports;
     accounts.platform.sum_of_active_campaign_donations += lamports;
     accounts.donor.donations_sum += lamports;
@@ -79,7 +71,7 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
     }
     accounts.donor.last_donation_ts = Clock::get()?.unix_timestamp as _;
     accounts.donor.seasonal_donations_sum += lamports;
-    accounts.donations.sum += lamports;
+    accounts.donations.donations_sum += lamports;
 
     invoke(
         &system_instruction::transfer(
@@ -125,7 +117,10 @@ fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: u
             (top.len() - 1, false)
         };
 
-    if let Some(new_i) = top[..cur_i].iter().position(|d| d.sum < donor_record.sum) {
+    if let Some(new_i) = top[..cur_i]
+        .iter()
+        .position(|d| d.donations_sum < donor_record.donations_sum)
+    {
         // sort donor
         top[new_i..=cur_i].rotate_right(1);
 
@@ -137,13 +132,6 @@ fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: u
 }
 
 fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    claim_liquidated_sol(
-        &accounts.platform,
-        &accounts.liquidated_sol_vault,
-        &mut accounts.campaign,
-        &accounts.sol_vault,
-    )?;
-
     let fee = lamports * accounts.platform.platform_fee_num / accounts.platform.platform_fee_denom;
     if accounts.fee_exemption_vault.amount < accounts.platform.fee_exemption_limit {
         transfer_to_campaign(accounts, lamports - fee)?;
@@ -157,7 +145,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         &mut accounts.platform.platform_top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            sum: accounts.donor.donations_sum,
+            donations_sum: accounts.donor.donations_sum,
         },
         PLATFORM_TOP_CAPACITY,
     );
@@ -165,7 +153,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         &mut accounts.platform.seasonal_top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            sum: accounts.donor.seasonal_donations_sum,
+            donations_sum: accounts.donor.seasonal_donations_sum,
         },
         SEASONAL_TOP_CAPACITY,
     );
@@ -173,7 +161,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         &mut accounts.campaign.campaign_top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            sum: accounts.donations.sum,
+            donations_sum: accounts.donations.donations_sum,
         },
         CAMPAIGN_TOP_CAPACITY,
     );

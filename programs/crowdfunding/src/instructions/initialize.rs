@@ -3,14 +3,14 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
 
 #[derive(Accounts)]
-#[instruction(max_liquidations: u16)]
+#[instruction(campaigns_capacity: u16)]
 pub struct Initialize<'info> {
     #[account(
         init,
         payer = platform_authority,
         seeds = [b"platform"],
         bump,
-        space = 8 + Platform::space(max_liquidations),
+        space = 8 + Platform::space(campaigns_capacity),
     )]
     platform: Account<'info, Platform>,
     #[account(mut)]
@@ -22,17 +22,19 @@ pub struct Initialize<'info> {
         seeds = [b"fee_vault"],
         bump,
         space = 0,
+        owner = system_program.key(),
     )]
     fee_vault: UncheckedAccount<'info>,
     /// CHECK:
     #[account(
         init,
         payer = platform_authority,
-        seeds = [b"liquidated_sol_vault"],
+        seeds = [b"sol_vault"],
         bump,
         space = 0,
+        owner = system_program.key(),
     )]
-    liquidated_sol_vault: UncheckedAccount<'info>,
+    sol_vault: UncheckedAccount<'info>,
     #[account(
         init,
         payer = platform_authority,
@@ -50,7 +52,7 @@ pub struct Initialize<'info> {
 #[allow(clippy::too_many_arguments)]
 pub fn initialize(
     ctx: Context<Initialize>,
-    max_liquidations: u16,
+    campaigns_capacity: u16,
     incentive_cooldown: u32,
     incentive_amount: u64,
     platform_fee_num: u64,
@@ -60,11 +62,10 @@ pub fn initialize(
 ) -> Result<()> {
     ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();
     ctx.accounts.platform.bump_fee_vault = *ctx.bumps.get("fee_vault").unwrap();
-    ctx.accounts.platform.bump_liquidated_sol_vault =
-        *ctx.bumps.get("liquidated_sol_vault").unwrap();
+    ctx.accounts.platform.bump_sol_vault = *ctx.bumps.get("sol_vault").unwrap();
     ctx.accounts.platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
     ctx.accounts.platform.authority = ctx.accounts.platform_authority.key();
-    ctx.accounts.platform.max_liquidations = max_liquidations;
+    ctx.accounts.platform.campaigns_capacity = campaigns_capacity;
     ctx.accounts.platform.incentive_cooldown = incentive_cooldown;
     ctx.accounts.platform.incentive_amount = incentive_amount;
     ctx.accounts.platform.platform_fee_num = platform_fee_num;

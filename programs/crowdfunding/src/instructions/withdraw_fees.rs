@@ -1,5 +1,8 @@
-use crate::{state::*, utils::*};
-use anchor_lang::prelude::*;
+use crate::state::*;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, system_instruction},
+};
 
 #[derive(Accounts)]
 pub struct WithdrawFees<'info> {
@@ -10,13 +13,27 @@ pub struct WithdrawFees<'info> {
     /// CHECK:
     #[account(mut, seeds = [b"fee_vault"], bump = platform.bump_fee_vault)]
     fee_vault: UncheckedAccount<'info>,
+    system_program: Program<'info, System>,
 }
 
 pub fn withdraw_fees(ctx: Context<WithdrawFees>) -> Result<()> {
-    transfer_all_lamports(
-        &ctx.accounts.fee_vault.to_account_info(),
-        &ctx.accounts.platform_authority.to_account_info(),
+    invoke_signed(
+        &system_instruction::transfer(
+            ctx.accounts.fee_vault.key,
+            ctx.accounts.platform_authority.key,
+            ctx.accounts.fee_vault.lamports() - Rent::get()?.minimum_balance(0),
+        ),
+        &[
+            ctx.accounts.fee_vault.to_account_info(),
+            ctx.accounts.platform_authority.to_account_info(),
+        ],
+        &[&[b"fee_vault", &[ctx.accounts.platform.bump_fee_vault]]],
     )?;
+
+    emit!(WithdrawFeesEvent {});
 
     Ok(())
 }
+
+#[event]
+struct WithdrawFeesEvent {}

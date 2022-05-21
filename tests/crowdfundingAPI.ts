@@ -10,7 +10,7 @@ import { Context } from "./ctx";
 
 export async function initializeCrowdfunding(
   ctx: Context,
-  maxLiquidations: number,
+  campaignsCapacity: number,
   incentiveCooldown: number,
   incentiveAmount: number | BN,
   platformFeeNum: number | BN,
@@ -20,7 +20,7 @@ export async function initializeCrowdfunding(
 ): Promise<void> {
   await ctx.program.methods
     .initialize(
-      maxLiquidations,
+      campaignsCapacity,
       incentiveCooldown,
       new BN(incentiveAmount),
       new BN(platformFeeNum),
@@ -32,7 +32,7 @@ export async function initializeCrowdfunding(
       platform: ctx.platform,
       platformAuthority: ctx.platformAuthority.publicKey,
       feeVault: ctx.feeVault,
-      liquidatedSolVault: ctx.liquidatedSolVault,
+      solVault: ctx.solVault,
       chrtMint: ctx.chrtMint,
       rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -58,8 +58,9 @@ export async function registerDonor(
 }
 
 export async function startCampaign(ctx: Context): Promise<void> {
-  const id = (await ctx.program.account.platform.fetch(ctx.platform))
-    .campaignsCount;
+  const id =
+    // @ts-ignore
+    (await ctx.program.account.platform.fetch(ctx.platform)).campaigns.length;
 
   await ctx.program.methods
     .startCampaign()
@@ -68,7 +69,6 @@ export async function startCampaign(ctx: Context): Promise<void> {
       chrtMint: ctx.chrtMint,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
-      solVault: await ctx.solVault(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       liquidationVault: await ctx.liquidationVault(id),
       systemProgram: SystemProgram.programId,
@@ -88,9 +88,8 @@ export async function donate(
     .accounts({
       platform: ctx.platform,
       feeVault: ctx.feeVault,
-      liquidatedSolVault: ctx.liquidatedSolVault,
+      solVault: ctx.solVault,
       campaign: await ctx.campaign(id),
-      solVault: await ctx.solVault(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       donor: await ctx.donor(donorAuthority.publicKey),
       donorAuthority: donorAuthority.publicKey,
@@ -117,9 +116,8 @@ export async function donateWithReferer(
       donate: {
         platform: ctx.platform,
         feeVault: ctx.feeVault,
-        liquidatedSolVault: ctx.liquidatedSolVault,
+        solVault: ctx.solVault,
         campaign: await ctx.campaign(id),
-        solVault: await ctx.solVault(id),
         feeExemptionVault: await ctx.feeExemptionVault(id),
         donor: await ctx.donor(donorAuthority.publicKey),
         donorAuthority: donorAuthority.publicKey,
@@ -174,9 +172,11 @@ export async function withdrawDonations(
   await ctx.program.methods
     .withdrawDonations()
     .accounts({
+      platform: ctx.platform,
+      solVault: ctx.solVault,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
-      solVault: await ctx.solVault(id),
+      systemProgram: SystemProgram.programId,
     })
     .signers([ctx.campaignAuthority])
     .rpc();
@@ -187,11 +187,10 @@ export async function stopCampaign(ctx: Context, id: number): Promise<void> {
     .stopCampaign()
     .accounts({
       platform: ctx.platform,
-      liquidatedSolVault: ctx.liquidatedSolVault,
+      solVault: ctx.solVault,
       chrtMint: ctx.chrtMint,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
-      solVault: await ctx.solVault(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       liquidationVault: await ctx.liquidationVault(id),
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -208,11 +207,11 @@ export async function liquidateCampaign(
     .liquidateCampaign()
     .accounts({
       platform: ctx.platform,
-      liquidatedSolVault: ctx.liquidatedSolVault,
+      feeVault: ctx.feeVault,
+      solVault: ctx.solVault,
       chrtMint: ctx.chrtMint,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
-      solVault: await ctx.solVault(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       liquidationVault: await ctx.liquidationVault(id),
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -227,6 +226,7 @@ export async function withdrawFees(ctx: Context): Promise<void> {
       platform: ctx.platform,
       platformAuthority: ctx.platformAuthority.publicKey,
       feeVault: ctx.feeVault,
+      systemProgram: SystemProgram.programId,
     })
     .signers([ctx.platformAuthority])
     .rpc();
