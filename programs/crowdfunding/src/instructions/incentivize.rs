@@ -31,6 +31,13 @@ fn mint_chrt_to_top_donor<'info>(
 }
 
 pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -> Result<()> {
+    let now = Clock::get()?.unix_timestamp as _;
+
+    if now - ctx.accounts.platform.last_incentive_ts < ctx.accounts.platform.incentive_cooldown {
+        return err!(CrowdfundingError::IncentiveCooldown);
+    }
+    ctx.accounts.platform.last_incentive_ts = now;
+
     let mut accs = ctx.remaining_accounts.iter();
 
     for d in &ctx.accounts.platform.platform_top {
@@ -44,7 +51,6 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
     }
 
     ctx.accounts.platform.seasonal_top.clear();
-    ctx.accounts.platform.last_incentive_ts = Clock::get()?.unix_timestamp as _;
 
     emit!(IncentivizeEvent {});
 

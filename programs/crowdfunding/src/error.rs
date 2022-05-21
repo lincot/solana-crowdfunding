@@ -14,4 +14,7 @@ pub enum CrowdfundingError {
     /// 6003 0x1773
     #[msg("Referring yourself is not allowed")]
     CannotReferYourself,
+    /// 6004 0x1774
+    #[msg("Incentive cooldown time has not passed")]
+    IncentiveCooldown,
 }

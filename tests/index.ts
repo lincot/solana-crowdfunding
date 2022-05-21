@@ -182,6 +182,8 @@ describe("crowdfunding", () => {
   it("Incentivize", async () => {
     await incentivize(ctx);
 
+    await expect(incentivize(ctx)).to.be.rejectedWith("IncentiveCooldown");
+
     const platform = await ctx.program.account.platform.fetch(ctx.platform);
     expect(platform.lastIncentiveTs).to.be.within(
       +new Date() / 1000 - 5,
