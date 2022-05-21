@@ -182,12 +182,20 @@ describe("crowdfunding", () => {
   it("Incentivize", async () => {
     await incentivize(ctx);
 
+    const platform = await ctx.program.account.platform.fetch(ctx.platform);
+    expect(platform.lastIncentiveTs).to.be.within(
+      +new Date() / 1000 - 5,
+      +new Date() / 1000
+    );
+
     expect(await (await ctx.chrtATA(ctx.donor1.publicKey)).amount(ctx)).to.eql(
       1001
     );
     expect(await (await ctx.chrtATA(ctx.donor2.publicKey)).amount(ctx)).to.eql(
       1000
     );
+
+    expect(await ctx.seasonalTop()).to.eql([]);
   });
 
   it("WithdrawDonations", async () => {

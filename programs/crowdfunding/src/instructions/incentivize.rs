@@ -43,6 +43,9 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
         mint_chrt_to_top_donor(&ctx, &donor_chrt)?;
     }
 
+    ctx.accounts.platform.seasonal_top.clear();
+    ctx.accounts.platform.last_incentive_ts = Clock::get()?.unix_timestamp as _;
+
     emit!(IncentivizeEvent {});
 
     Ok(())
