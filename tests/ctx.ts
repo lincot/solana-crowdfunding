@@ -70,10 +70,12 @@ export class Context {
     );
   }
 
-  async donations(
+  async donorDonationsToCampaign(
     donorAuthority: PublicKey,
-    campaign: PublicKey
+    campaignId: number
   ): Promise<PublicKey> {
+    const campaign = await this.campaign(campaignId);
+
     return await findPDA(
       [
         Buffer.from("donations"),
@@ -90,6 +92,15 @@ export class Context {
         Buffer.from("campaign"),
         new BN(campaignId).toArrayLike(Buffer, "le", 2),
       ],
+      this.program.programId
+    );
+  }
+
+  async totalDonationsToCampaign(campaignId: number): Promise<PublicKey> {
+    const campaign = await this.campaign(campaignId);
+
+    return await findPDA(
+      [Buffer.from("donations"), campaign.toBuffer()],
       this.program.programId
     );
   }

@@ -79,8 +79,9 @@ impl Donor {
 
 #[account]
 pub struct Donations {
+    pub bump: u8,
     pub donations_sum: u64,
 }
 impl Donations {
-    pub const SPACE: usize = 8;
+    pub const SPACE: usize = 1 + 8;
 }

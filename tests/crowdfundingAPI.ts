@@ -70,6 +70,7 @@ export async function startCampaign(ctx: Context): Promise<void> {
       chrtMint: ctx.chrtMint,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
+      totalDonationsToCampaign: await ctx.totalDonationsToCampaign(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       liquidationVault: await ctx.liquidationVault(id),
       systemProgram: SystemProgram.programId,
@@ -91,12 +92,13 @@ export async function donate(
       feeVault: ctx.feeVault,
       solVault: ctx.solVault,
       campaign: await ctx.campaign(id),
+      totalDonationsToCampaign: await ctx.totalDonationsToCampaign(id),
       feeExemptionVault: await ctx.feeExemptionVault(id),
       donor: await ctx.donor(donorAuthority.publicKey),
       donorAuthority: donorAuthority.publicKey,
-      donations: await ctx.donations(
+      donorDonationsToCampaign: await ctx.donorDonationsToCampaign(
         donorAuthority.publicKey,
-        await ctx.campaign(id)
+        id
       ),
       systemProgram: SystemProgram.programId,
     })
@@ -119,12 +121,13 @@ export async function donateWithReferer(
         feeVault: ctx.feeVault,
         solVault: ctx.solVault,
         campaign: await ctx.campaign(id),
+        totalDonationsToCampaign: await ctx.totalDonationsToCampaign(id),
         feeExemptionVault: await ctx.feeExemptionVault(id),
         donor: await ctx.donor(donorAuthority.publicKey),
         donorAuthority: donorAuthority.publicKey,
-        donations: await ctx.donations(
+        donorDonationsToCampaign: await ctx.donorDonationsToCampaign(
           donorAuthority.publicKey,
-          await ctx.campaign(id)
+          id
         ),
         systemProgram: SystemProgram.programId,
       },

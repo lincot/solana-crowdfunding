@@ -109,10 +109,15 @@ describe("crowdfunding", () => {
     );
     expect(donor.donationsSum.toNumber()).to.eql(97);
 
-    const donations = await ctx.program.account.donations.fetch(
-      await ctx.donations(ctx.donors[0].publicKey, await ctx.campaign(0))
+    const donorDonationsToCampaign = await ctx.program.account.donations.fetch(
+      await ctx.donorDonationsToCampaign(ctx.donors[0].publicKey, 0)
     );
-    expect(donations.donationsSum.toNumber()).to.eql(97);
+    expect(donorDonationsToCampaign.donationsSum.toNumber()).to.eql(97);
+
+    const totalDonationsToCampaign = await ctx.program.account.donations.fetch(
+      await ctx.totalDonationsToCampaign(0)
+    );
+    expect(totalDonationsToCampaign.donationsSum.toNumber()).to.eql(97);
 
     expect(await ctx.solVaultBalance()).to.eql(97);
     expect(await ctx.feeVaultBalance()).to.eql(3);
@@ -151,10 +156,15 @@ describe("crowdfunding", () => {
     );
     expect(donor.donationsSum.toNumber()).to.eql(9_700);
 
-    const donations = await ctx.program.account.donations.fetch(
-      await ctx.donations(ctx.donors[1].publicKey, await ctx.campaign(0))
+    const donorDonationsToCampaign = await ctx.program.account.donations.fetch(
+      await ctx.donorDonationsToCampaign(ctx.donors[1].publicKey, 0)
     );
-    expect(donations.donationsSum.toNumber()).to.eql(9_700);
+    expect(donorDonationsToCampaign.donationsSum.toNumber()).to.eql(9_700);
+
+    const totalDonationsToCampaign = await ctx.program.account.donations.fetch(
+      await ctx.totalDonationsToCampaign(0)
+    );
+    expect(totalDonationsToCampaign.donationsSum.toNumber()).to.eql(97 + 9_700);
 
     expect(await ctx.solVaultBalance()).to.eql(97 + 9_700);
     expect(await ctx.feeVaultBalance()).to.eql(3 + 300);
@@ -244,7 +254,7 @@ describe("crowdfunding", () => {
   });
 });
 
-describe("scenario 1", async () => {
+describe("scenario 1", () => {
   it("starts campaign", async () => {
     await startCampaign(ctx);
 

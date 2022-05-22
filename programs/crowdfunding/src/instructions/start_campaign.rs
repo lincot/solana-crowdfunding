@@ -21,6 +21,14 @@ pub struct StartCampaign<'info> {
     #[account(
         init,
         payer = campaign_authority,
+        seeds = [b"donations", campaign.key().as_ref()],
+        bump,
+        space = 8 + Donations::SPACE,
+    )]
+    total_donations_to_campaign: Account<'info, Donations>,
+    #[account(
+        init,
+        payer = campaign_authority,
         seeds = [b"fee_exemption_vault", platform.campaigns_count.to_le_bytes().as_ref()],
         bump,
         token::authority = platform,
@@ -59,6 +67,9 @@ pub fn start_campaign(ctx: Context<StartCampaign>) -> Result<()> {
     ctx.accounts.campaign.bump_liquidation_vault = *ctx.bumps.get("liquidation_vault").unwrap();
     ctx.accounts.campaign.authority = ctx.accounts.campaign_authority.key();
     ctx.accounts.campaign.id = id;
+
+    ctx.accounts.total_donations_to_campaign.bump =
+        *ctx.bumps.get("total_donations_to_campaign").unwrap();
 
     emit!(StartCampaignEvent {});
 

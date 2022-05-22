@@ -24,6 +24,12 @@ pub struct Donate<'info> {
     )]
     campaign: Account<'info, Campaign>,
     #[account(
+        mut,
+        seeds = [b"donations", campaign.key().as_ref()],
+        bump = total_donations_to_campaign.bump,
+    )]
+    total_donations_to_campaign: Account<'info, Donations>,
+    #[account(
         seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
         bump = campaign.bump_fee_exemption_vault,
     )]
@@ -39,7 +45,7 @@ pub struct Donate<'info> {
         bump,
         space = 8 + Donations::SPACE,
     )]
-    donations: Account<'info, Donations>,
+    donor_donations_to_campaign: Account<'info, Donations>,
     system_program: Program<'info, System>,
 }
 
@@ -47,7 +53,7 @@ pub struct Donate<'info> {
 pub struct DonateWithReferer<'info> {
     donate: Donate<'info>,
     #[account(mut, seeds = [b"chrt_mint"], bump = donate.platform.bump_chrt_mint)]
-    chrt_mint: Account<'info, Mint>,
+    chrt_mint: Box<Account<'info, Mint>>,
     #[account(
         seeds = [b"donor", referer_authority.key().as_ref()],
         bump = referer.bump,
@@ -69,7 +75,8 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
     accounts.platform.sum_of_all_donations += lamports;
     accounts.platform.sum_of_active_campaign_donations += lamports;
     accounts.donor.donations_sum += lamports;
-    accounts.donations.donations_sum += lamports;
+    accounts.total_donations_to_campaign.donations_sum += lamports;
+    accounts.donor_donations_to_campaign.donations_sum += lamports;
 
     invoke(
         &system_instruction::transfer(
@@ -151,7 +158,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         &mut accounts.campaign.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            donations_sum: accounts.donations.donations_sum,
+            donations_sum: accounts.donor_donations_to_campaign.donations_sum,
         },
         CAMPAIGN_TOP_CAPACITY,
     );
