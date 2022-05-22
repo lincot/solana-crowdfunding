@@ -18,6 +18,7 @@ pub struct RegisterDonor<'info> {
 
 pub fn register_donor(ctx: Context<RegisterDonor>) -> Result<()> {
     ctx.accounts.donor.bump = *ctx.bumps.get("donor").unwrap();
+    ctx.accounts.donor.authority = ctx.accounts.donor_authority.key();
 
     emit!(RegisterDonorEvent {});
 

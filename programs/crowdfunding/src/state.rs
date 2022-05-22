@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 pub const PLATFORM_TOP_CAPACITY: usize = 100;
-pub const SEASONAL_TOP_CAPACITY: usize = 10;
 pub const CAMPAIGN_TOP_CAPACITY: usize = 10;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
@@ -43,15 +42,13 @@ pub struct Platform {
     pub sum_of_active_campaign_donations: u64,
     pub avoided_fees_sum: u64,
     pub liquidations_sum: u64,
-    pub platform_top: Vec<DonorRecord>,
-    pub seasonal_top: Vec<DonorRecord>,
+    pub top: Vec<DonorRecord>,
     pub active_campaigns: Vec<CampaignRecord>,
 }
 impl Platform {
     pub const fn space(active_campaigns_capacity: u16) -> usize {
         (1 + 1 + 1 + 1 + 32 + 2 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
             + (4 + PLATFORM_TOP_CAPACITY * DonorRecord::SPACE)
-            + (4 + SEASONAL_TOP_CAPACITY * DonorRecord::SPACE)
             + (4 + active_campaigns_capacity as usize * CampaignRecord::SPACE)
     }
 }
@@ -63,7 +60,7 @@ pub struct Campaign {
     pub bump_liquidation_vault: u8,
     pub authority: Pubkey,
     pub id: u16,
-    pub campaign_top: Vec<DonorRecord>,
+    pub top: Vec<DonorRecord>,
 }
 impl Campaign {
     pub const SPACE: usize = 1 + 1 + 1 + 32 + 2 + (4 + CAMPAIGN_TOP_CAPACITY * DonorRecord::SPACE);
@@ -72,12 +69,12 @@ impl Campaign {
 #[account]
 pub struct Donor {
     pub bump: u8,
+    pub authority: Pubkey,
     pub donations_sum: u64,
-    pub seasonal_donations_sum: u64,
-    pub last_donation_ts: u32,
+    pub incentivized_donations_sum: u64,
 }
 impl Donor {
-    pub const SPACE: usize = 1 + 8 + 8 + 4;
+    pub const SPACE: usize = 1 + 32 + 8 + 8;
 }
 
 #[account]

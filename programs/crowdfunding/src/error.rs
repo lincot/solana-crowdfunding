@@ -6,15 +6,15 @@ pub enum CrowdfundingError {
     #[msg("Campaign's vault does not have enough CHRT for operation")]
     NotEnoughCHRTInVault,
     /// 6001 0x1771
-    #[msg("CHRT token account should be provided for every top donor")]
-    CHRTNotProvided,
+    #[msg("Platform's limit of active campaigns is reached")]
+    ActiveCampaignsLimit,
     /// 6002 0x1772
-    #[msg("Platform's limit of campaigns is reached")]
-    CampaignsLimit,
-    /// 6003 0x1773
     #[msg("Referring yourself is not allowed")]
     CannotReferYourself,
-    /// 6004 0x1774
+    /// 6003 0x1773
     #[msg("Incentive cooldown time has not passed")]
     IncentiveCooldown,
+    /// 6004 0x1774
+    #[msg("Donor is not eligible for incentive")]
+    NotEligibleForIncentive,
 }

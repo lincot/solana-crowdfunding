@@ -69,11 +69,6 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
     accounts.platform.sum_of_all_donations += lamports;
     accounts.platform.sum_of_active_campaign_donations += lamports;
     accounts.donor.donations_sum += lamports;
-    if accounts.donor.last_donation_ts < accounts.platform.last_incentive_ts {
-        accounts.donor.seasonal_donations_sum = 0;
-    }
-    accounts.donor.last_donation_ts = Clock::get()?.unix_timestamp as _;
-    accounts.donor.seasonal_donations_sum += lamports;
     accounts.donations.donations_sum += lamports;
 
     invoke(
@@ -145,7 +140,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
     }
 
     add_to_top(
-        &mut accounts.platform.platform_top,
+        &mut accounts.platform.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
             donations_sum: accounts.donor.donations_sum,
@@ -153,15 +148,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         PLATFORM_TOP_CAPACITY,
     );
     add_to_top(
-        &mut accounts.platform.seasonal_top,
-        DonorRecord {
-            donor: accounts.donor_authority.key(),
-            donations_sum: accounts.donor.seasonal_donations_sum,
-        },
-        SEASONAL_TOP_CAPACITY,
-    );
-    add_to_top(
-        &mut accounts.campaign.campaign_top,
+        &mut accounts.campaign.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
             donations_sum: accounts.donations.donations_sum,

@@ -2,6 +2,8 @@ use crate::{error::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
 
+const SEASONAL_TOP_CAPACITY: usize = 10;
+
 #[derive(Accounts)]
 pub struct Incentivize<'info> {
     #[account(mut, seeds = [b"platform"], bump = platform.bump)]
@@ -13,9 +15,10 @@ pub struct Incentivize<'info> {
     token_program: Program<'info, Token>,
 }
 
-fn mint_chrt_to_top_donor<'info>(
+fn mint_chrt<'info>(
     ctx: &Context<'_, '_, '_, 'info, Incentivize<'info>>,
     donor_chrt: &Account<'info, TokenAccount>,
+    amount: u64,
 ) -> Result<()> {
     let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.platform.bump]]];
     let cpi_ctx = CpiContext::new_with_signer(
@@ -27,7 +30,7 @@ fn mint_chrt_to_top_donor<'info>(
         },
         signer,
     );
-    token::mint_to(cpi_ctx, ctx.accounts.platform.incentive_amount)
+    token::mint_to(cpi_ctx, amount)
 }
 
 pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -> Result<()> {
@@ -38,19 +41,24 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
     }
     ctx.accounts.platform.last_incentive_ts = now;
 
-    let mut accs = ctx.remaining_accounts.iter();
+    for pair in (ctx.remaining_accounts)
+        .chunks_exact(2)
+        .take(SEASONAL_TOP_CAPACITY)
+    {
+        let mut donor = Account::<Donor>::try_from(&pair[0])?;
+        if donor.incentivized_donations_sum == donor.donations_sum {
+            return err!(CrowdfundingError::NotEligibleForIncentive);
+        }
+        donor.incentivized_donations_sum = donor.donations_sum;
+        donor.try_serialize(&mut &mut pair[0].try_borrow_mut_data()?[..])?;
 
-    for d in &ctx.accounts.platform.platform_top {
-        let donor_chrt = Account::<TokenAccount>::try_from(
-            accs.next().ok_or(CrowdfundingError::CHRTNotProvided)?,
-        )?;
-        if donor_chrt.owner != d.donor {
+        let donor_chrt = Account::<TokenAccount>::try_from(&pair[1])?;
+        if donor_chrt.owner != donor.authority {
             return err!(ConstraintTokenOwner);
         }
-        mint_chrt_to_top_donor(&ctx, &donor_chrt)?;
-    }
 
-    ctx.accounts.platform.seasonal_top.clear();
+        mint_chrt(&ctx, &donor_chrt, ctx.accounts.platform.incentive_amount)?;
+    }
 
     emit!(IncentivizeEvent {});
 

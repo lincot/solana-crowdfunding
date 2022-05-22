@@ -131,17 +131,7 @@ export class Context {
     const platform = await this.program.account.platform.fetch(this.platform);
 
     // @ts-ignore
-    return platform.platformTop.map((d: any) => {
-      d.donationsSum = d.donationsSum.toNumber();
-      return d;
-    });
-  }
-
-  async seasonalTop() {
-    const platform = await this.program.account.platform.fetch(this.platform);
-
-    // @ts-ignore
-    return platform.seasonalTop.map((d: any) => {
+    return platform.top.map((d: any) => {
       d.donationsSum = d.donationsSum.toNumber();
       return d;
     });
@@ -153,7 +143,7 @@ export class Context {
     );
 
     // @ts-ignore
-    return campaign.campaignTop.map((d: any) => {
+    return campaign.top.map((d: any) => {
       d.donationsSum = d.donationsSum.toNumber();
       return d;
     });

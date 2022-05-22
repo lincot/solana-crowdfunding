@@ -7,6 +7,8 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Context } from "./ctx";
+import { sha256 } from "js-sha256";
+import bs58 from "bs58";
 
 export async function initializeCrowdfunding(
   ctx: Context,
@@ -58,9 +60,8 @@ export async function registerDonor(
 }
 
 export async function startCampaign(ctx: Context): Promise<void> {
-  const platform = await ctx.program.account.platform.fetch(ctx.platform);
-  // @ts-ignore
-  const id = platform.activeCampaigns.length;
+  const id = (await ctx.program.account.platform.fetch(ctx.platform))
+    .campaignsCount;
 
   await ctx.program.methods
     .startCampaign()
@@ -137,19 +138,46 @@ export async function donateWithReferer(
     .rpc();
 }
 
+async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
+  const discriminator = Buffer.from(sha256.digest("account:Donor")).slice(0, 8);
+
+  const filters = [
+    { memcmp: { offset: 0, bytes: bs58.encode(discriminator) } },
+  ];
+
+  const donors = (
+    await ctx.connection.getProgramAccounts(ctx.program.programId, { filters })
+  ).map((account) =>
+    ctx.program.coder.accounts.decode("Donor", account.account.data)
+  );
+
+  const sortedDonors = donors.sort((a, b) =>
+    b.donationsSum
+      .sub(b.incentivizedDonationsSum)
+      .cmp(a.donationsSum.sub(a.incentivizedDonationsSum))
+  );
+
+  return sortedDonors.map((d) => d.authority).slice(0, 10);
+}
+
 export async function incentivize(ctx: Context): Promise<void> {
   const remainingAccounts = [];
 
-  const top = (await ctx.program.account.platform.fetch(ctx.platform))
-    .platformTop;
+  const top = await seasonalTop(ctx);
 
-  // @ts-ignore
   for (let i = 0; i < top.length; i++) {
-    remainingAccounts.push({
-      pubkey: await ctx.chrtATA(top[i].donor),
-      isSigner: false,
-      isWritable: true,
-    });
+    remainingAccounts.push(
+      {
+        pubkey: await ctx.donor(top[i]),
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: await ctx.chrtATA(top[i]),
+        isSigner: false,
+        isWritable: true,
+      }
+    );
   }
 
   await ctx.program.methods

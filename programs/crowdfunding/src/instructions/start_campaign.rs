@@ -45,7 +45,7 @@ pub fn start_campaign(ctx: Context<StartCampaign>) -> Result<()> {
     if ctx.accounts.platform.active_campaigns_capacity
         <= ctx.accounts.platform.active_campaigns.len() as _
     {
-        return err!(CrowdfundingError::CampaignsLimit);
+        return err!(CrowdfundingError::ActiveCampaignsLimit);
     }
     let id = ctx.accounts.platform.campaigns_count;
     ctx.accounts.platform.active_campaigns.push(CampaignRecord {

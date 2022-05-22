@@ -66,6 +66,7 @@ describe("crowdfunding", () => {
       await ctx.donor(ctx.donor1.publicKey)
     );
     expect(donor.bump).to.gt(200);
+    expect(donor.authority).to.eql(ctx.donor1.publicKey);
   });
 
   it("StartCampaign", async () => {
@@ -103,11 +104,6 @@ describe("crowdfunding", () => {
       await ctx.donor(ctx.donor1.publicKey)
     );
     expect(donor.donationsSum.toNumber()).to.eql(97);
-    expect(donor.seasonalDonationsSum.toNumber()).to.eql(97);
-    expect(donor.lastDonationTs).to.be.within(
-      +new Date() / 1000 - 7,
-      +new Date() / 1000
-    );
 
     const donations = await ctx.program.account.donations.fetch(
       await ctx.donations(ctx.donor1.publicKey, await ctx.campaign(0))
@@ -122,9 +118,6 @@ describe("crowdfunding", () => {
     ]);
 
     expect(await ctx.platformTop()).to.eql([
-      { donor: ctx.donor1.publicKey, donationsSum: 97 },
-    ]);
-    expect(await ctx.seasonalTop()).to.eql([
       { donor: ctx.donor1.publicKey, donationsSum: 97 },
     ]);
     expect(await ctx.campaignTop(0)).to.eql([
@@ -147,11 +140,6 @@ describe("crowdfunding", () => {
       await ctx.donor(ctx.donor2.publicKey)
     );
     expect(donor.donationsSum.toNumber()).to.eql(9_700);
-    expect(donor.seasonalDonationsSum.toNumber()).to.eql(9_700);
-    expect(donor.lastDonationTs).to.be.within(
-      +new Date() / 1000 - 7,
-      +new Date() / 1000
-    );
 
     const donations = await ctx.program.account.donations.fetch(
       await ctx.donations(ctx.donor2.publicKey, await ctx.campaign(0))
@@ -169,10 +157,6 @@ describe("crowdfunding", () => {
       { donor: ctx.donor2.publicKey, donationsSum: 9_700 },
       { donor: ctx.donor1.publicKey, donationsSum: 97 },
     ]);
-    expect(await ctx.seasonalTop()).to.eql([
-      { donor: ctx.donor2.publicKey, donationsSum: 9_700 },
-      { donor: ctx.donor1.publicKey, donationsSum: 97 },
-    ]);
     expect(await ctx.campaignTop(0)).to.eql([
       { donor: ctx.donor2.publicKey, donationsSum: 9_700 },
       { donor: ctx.donor1.publicKey, donationsSum: 97 },
@@ -186,7 +170,7 @@ describe("crowdfunding", () => {
 
     const platform = await ctx.program.account.platform.fetch(ctx.platform);
     expect(platform.lastIncentiveTs).to.be.within(
-      +new Date() / 1000 - 5,
+      +new Date() / 1000 - 7,
       +new Date() / 1000
     );
 
@@ -197,7 +181,15 @@ describe("crowdfunding", () => {
       1000
     );
 
-    expect(await ctx.seasonalTop()).to.eql([]);
+    const donor1 = await ctx.program.account.donor.fetch(
+      await ctx.donor(ctx.donor1.publicKey)
+    );
+    expect(donor1.incentivizedDonationsSum).to.eql(donor1.donationsSum);
+
+    const donor2 = await ctx.program.account.donor.fetch(
+      await ctx.donor(ctx.donor2.publicKey)
+    );
+    expect(donor2.incentivizedDonationsSum).to.eql(donor2.donationsSum);
   });
 
   it("WithdrawDonations", async () => {
