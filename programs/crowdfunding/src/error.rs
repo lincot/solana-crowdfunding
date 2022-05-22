@@ -17,4 +17,7 @@ pub enum CrowdfundingError {
     /// 6004 0x1774
     #[msg("Donor is not eligible for incentive")]
     NotEligibleForIncentive,
+    /// 6005 0x1775
+    #[msg("Seasonal top contains duplicates")]
+    DuplicateInTop,
 }

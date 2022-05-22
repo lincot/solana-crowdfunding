@@ -41,11 +41,17 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
     }
     ctx.accounts.platform.last_incentive_ts = now;
 
+    let mut prev_donors = Vec::with_capacity(10);
+
     for pair in (ctx.remaining_accounts)
         .chunks_exact(2)
         .take(SEASONAL_TOP_CAPACITY)
     {
         let mut donor = Account::<Donor>::try_from(&pair[0])?;
+        if prev_donors.contains(&donor.key()) {
+            return err!(CrowdfundingError::DuplicateInTop);
+        }
+        prev_donors.push(donor.key());
         if donor.incentivized_donations_sum == donor.donations_sum {
             return err!(CrowdfundingError::NotEligibleForIncentive);
         }
