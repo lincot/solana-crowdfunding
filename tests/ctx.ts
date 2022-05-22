@@ -21,8 +21,7 @@ export class Context {
 
   campaignAuthority: Keypair;
 
-  donor1: Keypair;
-  donor2: Keypair;
+  donors: Keypair[];
 
   constructor() {
     this.connection = new Connection("http://localhost:8899", "recent");
@@ -31,17 +30,20 @@ export class Context {
 
     this.platformAuthority = new Keypair();
     this.campaignAuthority = new Keypair();
-    this.donor1 = new Keypair();
-    this.donor2 = new Keypair();
+    this.donors = [];
+    for (let i = 0; i < 10; i++) {
+      this.donors.push(new Keypair());
+    }
   }
 
   async setup() {
-    await airdrop(this, [
-      this.platformAuthority.publicKey,
-      this.campaignAuthority.publicKey,
-      this.donor1.publicKey,
-      this.donor2.publicKey,
-    ]);
+    await airdrop(
+      this,
+      [
+        this.platformAuthority.publicKey,
+        this.campaignAuthority.publicKey,
+      ].concat(this.donors.map((d) => d.publicKey))
+    );
 
     this.platform = await findPDA(
       [Buffer.from("platform")],
@@ -92,24 +94,26 @@ export class Context {
     );
   }
 
-  async feeExemptionVault(campaignId: number): Promise<PublicKey> {
-    return await findPDA(
+  async feeExemptionVault(campaignId: number): Promise<TokenAccount> {
+    const address = await findPDA(
       [
         Buffer.from("fee_exemption_vault"),
         new BN(campaignId).toArrayLike(Buffer, "le", 2),
       ],
       this.program.programId
     );
+    return new TokenAccount(address, this.chrtMint);
   }
 
-  async liquidationVault(campaignId: number): Promise<PublicKey> {
-    return await findPDA(
+  async liquidationVault(campaignId: number): Promise<TokenAccount> {
+    const address = await findPDA(
       [
         Buffer.from("liquidation_vault"),
         new BN(campaignId).toArrayLike(Buffer, "le", 2),
       ],
       this.program.programId
     );
+    return new TokenAccount(address, this.chrtMint);
   }
 
   async chrtATA(owner: PublicKey): Promise<TokenAccount> {

@@ -1,8 +1,3 @@
-import {
-  burn,
-  getAccount,
-  getOrCreateAssociatedTokenAccount,
-} from "@solana/spl-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { Context } from "./ctx";
 import * as token from "@solana/spl-token";
@@ -16,7 +11,7 @@ export class TokenAccount extends PublicKey {
   }
 
   async amount(ctx: Context): Promise<number> {
-    return Number((await getAccount(ctx.connection, this)).amount);
+    return Number((await token.getAccount(ctx.connection, this)).amount);
   }
 }
 
@@ -56,7 +51,7 @@ export async function findATA(
   mint: PublicKey
 ): Promise<TokenAccount> {
   const address = (
-    await getOrCreateAssociatedTokenAccount(
+    await token.getOrCreateAssociatedTokenAccount(
       ctx.connection,
       ctx.payer,
       mint,
@@ -73,12 +68,29 @@ export async function burnAll(
   from: TokenAccount,
   owner: Keypair
 ): Promise<void> {
-  await burn(
+  await token.burn(
     ctx.connection,
     ctx.payer,
     from,
     from.mint,
     owner,
     await from.amount(ctx)
+  );
+}
+
+export async function transfer(
+  ctx: Context,
+  source: TokenAccount,
+  destination: TokenAccount,
+  owner: Keypair,
+  amount: number | bigint
+): Promise<void> {
+  await token.transfer(
+    ctx.connection,
+    ctx.payer,
+    source,
+    destination,
+    owner,
+    amount
   );
 }

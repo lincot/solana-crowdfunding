@@ -140,24 +140,24 @@ export async function donateWithReferer(
 
 async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
   const discriminator = Buffer.from(sha256.digest("account:Donor")).slice(0, 8);
-
   const filters = [
     { memcmp: { offset: 0, bytes: bs58.encode(discriminator) } },
   ];
 
-  const donors = (
+  return (
     await ctx.connection.getProgramAccounts(ctx.program.programId, { filters })
-  ).map((account) =>
-    ctx.program.coder.accounts.decode("Donor", account.account.data)
-  );
-
-  const sortedDonors = donors.sort((a, b) =>
-    b.donationsSum
-      .sub(b.incentivizedDonationsSum)
-      .cmp(a.donationsSum.sub(a.incentivizedDonationsSum))
-  );
-
-  return sortedDonors.map((d) => d.authority).slice(0, 10);
+  )
+    .map((account) =>
+      ctx.program.coder.accounts.decode("Donor", account.account.data)
+    )
+    .filter((d) => !d.donationsSum.eq(d.incentivizedDonationsSum))
+    .sort((a, b) =>
+      b.donationsSum
+        .sub(b.incentivizedDonationsSum)
+        .cmp(a.donationsSum.sub(a.incentivizedDonationsSum))
+    )
+    .map((d) => d.authority)
+    .slice(0, 10);
 }
 
 export async function incentivize(ctx: Context): Promise<void> {

@@ -1,5 +1,8 @@
-use crate::{error::*, state::*, utils::*};
-use anchor_lang::prelude::*;
+use crate::{error::*, state::*};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, system_instruction},
+};
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
@@ -37,6 +40,7 @@ pub struct LiquidateCampaign<'info> {
     )]
     liquidation_vault: Account<'info, TokenAccount>,
     token_program: Program<'info, Token>,
+    system_program: Program<'info, System>,
 }
 
 fn close_chrt_vaults(ctx: &Context<LiquidateCampaign>) -> Result<()> {
@@ -72,6 +76,26 @@ fn close_chrt_vaults(ctx: &Context<LiquidateCampaign>) -> Result<()> {
     Ok(())
 }
 
+fn transfer_from_sol_to_fee_vault(ctx: &Context<LiquidateCampaign>, lamports: u64) -> Result<()> {
+    if lamports == 0 {
+        return Ok(());
+    }
+
+    invoke_signed(
+        &system_instruction::transfer(
+            ctx.accounts.sol_vault.key,
+            ctx.accounts.fee_vault.key,
+            lamports,
+        ),
+        &[
+            ctx.accounts.sol_vault.to_account_info(),
+            ctx.accounts.fee_vault.to_account_info(),
+        ],
+        &[&[b"sol_vault", &[ctx.accounts.platform.bump_sol_vault]]],
+    )?;
+    Ok(())
+}
+
 pub fn liquidate_campaign(ctx: Context<LiquidateCampaign>) -> Result<()> {
     if ctx.accounts.liquidation_vault.amount < ctx.accounts.platform.liquidation_limit {
         return err!(CrowdfundingError::NotEnoughCHRTInVault);
@@ -85,21 +109,18 @@ pub fn liquidate_campaign(ctx: Context<LiquidateCampaign>) -> Result<()> {
     let liquidation_amount = closed_campaign.donations_sum - closed_campaign.withdrawn_sum;
     ctx.accounts.platform.liquidations_sum += liquidation_amount;
 
-    let sum_of_active_campaign_donations = ctx.accounts.platform.sum_of_active_campaign_donations;
+    let remaining_sum =
+        ctx.accounts.platform.sum_of_active_campaign_donations - closed_campaign.donations_sum;
     let mut distributed_sum = 0;
     for campaign in ctx.accounts.platform.active_campaigns.iter_mut() {
-        let share = liquidation_amount * campaign.donations_sum / sum_of_active_campaign_donations;
+        let share = liquidation_amount * campaign.donations_sum / remaining_sum;
         campaign.donations_sum += share;
         distributed_sum += share;
     }
 
     let not_distributed = liquidation_amount - distributed_sum;
     ctx.accounts.platform.sum_of_active_campaign_donations -= not_distributed;
-    move_lamports(
-        &ctx.accounts.sol_vault.to_account_info(),
-        &ctx.accounts.fee_vault.to_account_info(),
-        not_distributed,
-    )?;
+    transfer_from_sol_to_fee_vault(&ctx, not_distributed)?;
 
     emit!(LiquidateCampaignEvent {});
 
