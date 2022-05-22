@@ -13,6 +13,7 @@ import {
   incentivize,
   withdrawFees,
   withdrawDonations,
+  seasonalTop,
 } from "./crowdfundingAPI";
 import { transfer } from "./token";
 
@@ -254,7 +255,7 @@ describe("crowdfunding", () => {
   });
 });
 
-describe("scenario 1", () => {
+describe("scenario", () => {
   it("starts campaign", async () => {
     await startCampaign(ctx);
 
@@ -404,5 +405,64 @@ describe("scenario 1", () => {
       { id: 3, donationsSum: 1 + 10000, withdrawnSum: 0 },
       { id: 4, donationsSum: 9 + 90000, withdrawnSum: 0 },
     ]);
+  });
+
+  it("withdraws donations that came from liquidation", async () => {
+    expect(await ctx.solVaultBalance()).to.eql(1 + 10000 + 9 + 90000);
+
+    await withdrawDonations(ctx, 3);
+
+    expect(await ctx.solVaultBalance()).to.eql(9 + 90000);
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 3, donationsSum: 1 + 10000, withdrawnSum: 1 + 10000 },
+      { id: 4, donationsSum: 9 + 90000, withdrawnSum: 0 },
+    ]);
+
+    await stopCampaign(ctx, 4);
+
+    expect(await ctx.solVaultBalance()).to.eql(0);
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 3, donationsSum: 1 + 10000, withdrawnSum: 1 + 10000 },
+    ]);
+
+    await stopCampaign(ctx, 3);
+
+    expect(await ctx.activeCampaigns()).to.eql([]);
+
+    await withdrawFees(ctx);
+  });
+
+  it("sorts top with more than 10 donors", async () => {
+    await startCampaign(ctx);
+
+    await donate(ctx, ctx.donors[14], 5, 14);
+    await donate(ctx, ctx.donors[2], 5, 2);
+    await donate(ctx, ctx.donors[5], 5, 5);
+    await donate(ctx, ctx.donors[4], 5, 4);
+    await donate(ctx, ctx.donors[1], 5, 1);
+    await donate(ctx, ctx.donors[11], 5, 11);
+    await donate(ctx, ctx.donors[12], 5, 12);
+    await donate(ctx, ctx.donors[10], 5, 10);
+    await donate(ctx, ctx.donors[9], 5, 9);
+    await donate(ctx, ctx.donors[13], 5, 13);
+    await donate(ctx, ctx.donors[3], 5, 3);
+    await donate(ctx, ctx.donors[7], 5, 7);
+    await donate(ctx, ctx.donors[8], 5, 8);
+
+    expect(await ctx.campaignTop(5)).to.eql([
+      { donor: ctx.donors[14].publicKey, donationsSum: 14 },
+      { donor: ctx.donors[13].publicKey, donationsSum: 13 },
+      { donor: ctx.donors[12].publicKey, donationsSum: 12 },
+      { donor: ctx.donors[11].publicKey, donationsSum: 11 },
+      { donor: ctx.donors[10].publicKey, donationsSum: 10 },
+      { donor: ctx.donors[9].publicKey, donationsSum: 9 },
+      { donor: ctx.donors[8].publicKey, donationsSum: 8 },
+      { donor: ctx.donors[7].publicKey, donationsSum: 7 },
+      { donor: ctx.donors[5].publicKey, donationsSum: 5 },
+      { donor: ctx.donors[4].publicKey, donationsSum: 4 },
+    ]);
+    expect((await ctx.campaignTop(5)).map((d: any) => d.donor)).to.eql(
+      await seasonalTop(ctx)
+    );
   });
 });

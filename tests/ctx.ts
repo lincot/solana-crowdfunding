@@ -31,7 +31,7 @@ export class Context {
     this.platformAuthority = new Keypair();
     this.campaignAuthority = new Keypair();
     this.donors = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 15; i++) {
       this.donors.push(new Keypair());
     }
   }

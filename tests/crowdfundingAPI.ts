@@ -141,7 +141,7 @@ export async function donateWithReferer(
     .rpc();
 }
 
-async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
+export async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
   const discriminator = Buffer.from(sha256.digest("account:Donor")).slice(0, 8);
   const filters = [
     { memcmp: { offset: 0, bytes: bs58.encode(discriminator) } },
@@ -159,8 +159,8 @@ async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
         .sub(b.incentivizedDonationsSum)
         .cmp(a.donationsSum.sub(a.incentivizedDonationsSum))
     )
-    .map((d) => d.authority)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map((d) => d.authority);
 }
 
 export async function incentivize(ctx: Context): Promise<void> {
