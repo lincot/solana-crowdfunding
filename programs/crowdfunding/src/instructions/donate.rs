@@ -62,7 +62,10 @@ pub struct DonateWithReferer<'info> {
 }
 
 fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    (accounts.platform.campaigns)[accounts.campaign.id as usize].donations_sum += lamports;
+    let i = (accounts.platform.active_campaigns)
+        .binary_search_by_key(&accounts.campaign.id, |c| c.id)
+        .unwrap();
+    accounts.platform.active_campaigns[i].donations_sum += lamports;
     accounts.platform.sum_of_all_donations += lamports;
     accounts.platform.sum_of_active_campaign_donations += lamports;
     accounts.donor.donations_sum += lamports;

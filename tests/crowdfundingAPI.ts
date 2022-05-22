@@ -10,7 +10,7 @@ import { Context } from "./ctx";
 
 export async function initializeCrowdfunding(
   ctx: Context,
-  campaignsCapacity: number,
+  activeCampaignsCapacity: number,
   incentiveCooldown: number,
   incentiveAmount: number | BN,
   platformFeeNum: number | BN,
@@ -20,7 +20,7 @@ export async function initializeCrowdfunding(
 ): Promise<void> {
   await ctx.program.methods
     .initialize(
-      campaignsCapacity,
+      activeCampaignsCapacity,
       incentiveCooldown,
       new BN(incentiveAmount),
       new BN(platformFeeNum),
@@ -58,9 +58,9 @@ export async function registerDonor(
 }
 
 export async function startCampaign(ctx: Context): Promise<void> {
-  const id =
-    // @ts-ignore
-    (await ctx.program.account.platform.fetch(ctx.platform)).campaigns.length;
+  const platform = await ctx.program.account.platform.fetch(ctx.platform);
+  // @ts-ignore
+  const id = platform.activeCampaigns.length;
 
   await ctx.program.methods
     .startCampaign()

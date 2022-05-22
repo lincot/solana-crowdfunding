@@ -116,11 +116,11 @@ export class Context {
     return await findATA(this, owner, this.chrtMint);
   }
 
-  async campaigns() {
+  async activeCampaigns() {
     const platform = await this.program.account.platform.fetch(this.platform);
 
     // @ts-ignore
-    return platform.campaigns.map((c: any) => {
+    return platform.activeCampaigns.map((c: any) => {
       c.donationsSum = c.donationsSum.toNumber();
       c.withdrawnSum = c.withdrawnSum.toNumber();
       return c;

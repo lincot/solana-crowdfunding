@@ -25,7 +25,7 @@ before(async () => {
 
 describe("crowdfunding", () => {
   it("Initialize", async () => {
-    const campaignsCapacity = 100;
+    const activeCampaignsCapacity = 100;
     const incentiveCooldown = 10;
     const incentiveAmount = 1000;
     const platformFeeNum = 3;
@@ -34,7 +34,7 @@ describe("crowdfunding", () => {
     const liquidationLimit = 10000;
     await initializeCrowdfunding(
       ctx,
-      campaignsCapacity,
+      activeCampaignsCapacity,
       incentiveCooldown,
       incentiveAmount,
       platformFeeNum,
@@ -49,7 +49,7 @@ describe("crowdfunding", () => {
     expect(platform.bumpSolVault).to.gt(200);
     expect(platform.bumpChrtMint).to.gt(200);
     expect(platform.authority).to.eql(ctx.platformAuthority.publicKey);
-    expect(platform.campaignsCapacity).to.eql(campaignsCapacity);
+    expect(platform.activeCampaignsCapacity).to.eql(activeCampaignsCapacity);
     expect(platform.incentiveCooldown).to.eql(incentiveCooldown);
     expect(platform.incentiveAmount.toNumber()).to.eql(incentiveAmount);
     expect(platform.platformFeeNum.toNumber()).to.eql(platformFeeNum);
@@ -80,15 +80,15 @@ describe("crowdfunding", () => {
     expect(campaign.authority).to.eql(ctx.campaignAuthority.publicKey);
     expect(campaign.id).to.eql(0);
 
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 0, donationsSum: 0, withdrawnSum: 0 },
     ]);
 
     await startCampaign(ctx);
 
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 0, donationsSum: 0, withdrawnSum: 0 },
+      { id: 1, donationsSum: 0, withdrawnSum: 0 },
     ]);
   });
 
@@ -105,7 +105,7 @@ describe("crowdfunding", () => {
     expect(donor.donationsSum.toNumber()).to.eql(97);
     expect(donor.seasonalDonationsSum.toNumber()).to.eql(97);
     expect(donor.lastDonationTs).to.be.within(
-      +new Date() / 1000 - 5,
+      +new Date() / 1000 - 7,
       +new Date() / 1000
     );
 
@@ -116,9 +116,9 @@ describe("crowdfunding", () => {
 
     expect(await ctx.solVaultBalance()).to.eql(97);
     expect(await ctx.feeVaultBalance()).to.eql(3);
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 97, withdrawnSum: 0, isClosed: false },
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 0, donationsSum: 97, withdrawnSum: 0 },
+      { id: 1, donationsSum: 0, withdrawnSum: 0 },
     ]);
 
     expect(await ctx.platformTop()).to.eql([
@@ -160,9 +160,9 @@ describe("crowdfunding", () => {
 
     expect(await ctx.solVaultBalance()).to.eql(97 + 9_700);
     expect(await ctx.feeVaultBalance()).to.eql(3 + 300);
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 97 + 9_700, withdrawnSum: 0, isClosed: false },
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 0, donationsSum: 97 + 9_700, withdrawnSum: 0 },
+      { id: 1, donationsSum: 0, withdrawnSum: 0 },
     ]);
 
     expect(await ctx.platformTop()).to.eql([
@@ -204,9 +204,9 @@ describe("crowdfunding", () => {
     await withdrawDonations(ctx, 0);
 
     expect(await ctx.solVaultBalance()).to.eql(0);
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 97 + 9_700, withdrawnSum: 97 + 9_700, isClosed: false },
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 0, donationsSum: 97 + 9_700, withdrawnSum: 97 + 9_700 },
+      { id: 1, donationsSum: 0, withdrawnSum: 0 },
     ]);
   });
 
@@ -219,10 +219,13 @@ describe("crowdfunding", () => {
   it("StopCampaign", async () => {
     await stopCampaign(ctx, 0);
 
-    expect(await ctx.campaigns()).to.eql([
-      { donationsSum: 97 + 9_700, withdrawnSum: 97 + 9_700, isClosed: true },
-      { donationsSum: 0, withdrawnSum: 0, isClosed: false },
+    expect(await ctx.activeCampaigns()).to.eql([
+      { id: 1, donationsSum: 0, withdrawnSum: 0 },
     ]);
+
+    await stopCampaign(ctx, 1);
+
+    expect(await ctx.activeCampaigns()).to.eql([]);
   });
 
   it("WithdrawFees", async () => {

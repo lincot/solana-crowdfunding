@@ -15,12 +15,12 @@ impl DonorRecord {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
 pub struct CampaignRecord {
+    pub id: u16,
     pub donations_sum: u64,
     pub withdrawn_sum: u64,
-    pub is_closed: bool,
 }
 impl CampaignRecord {
-    pub const SPACE: usize = 8 + 8 + 1;
+    pub const SPACE: usize = 2 + 8 + 8;
 }
 
 #[account]
@@ -30,7 +30,8 @@ pub struct Platform {
     pub bump_sol_vault: u8,
     pub bump_chrt_mint: u8,
     pub authority: Pubkey,
-    pub campaigns_capacity: u16,
+    pub campaigns_count: u16,
+    pub active_campaigns_capacity: u16,
     pub incentive_cooldown: u32,
     pub incentive_amount: u64,
     pub platform_fee_num: u64,
@@ -44,14 +45,14 @@ pub struct Platform {
     pub liquidations_sum: u64,
     pub platform_top: Vec<DonorRecord>,
     pub seasonal_top: Vec<DonorRecord>,
-    pub campaigns: Vec<CampaignRecord>,
+    pub active_campaigns: Vec<CampaignRecord>,
 }
 impl Platform {
-    pub const fn space(campaigns_capacity: u16) -> usize {
-        (1 + 1 + 1 + 1 + 32 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
+    pub const fn space(active_campaigns_capacity: u16) -> usize {
+        (1 + 1 + 1 + 1 + 32 + 2 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
             + (4 + PLATFORM_TOP_CAPACITY * DonorRecord::SPACE)
             + (4 + SEASONAL_TOP_CAPACITY * DonorRecord::SPACE)
-            + (4 + campaigns_capacity as usize * CampaignRecord::SPACE)
+            + (4 + active_campaigns_capacity as usize * CampaignRecord::SPACE)
     }
 }
 

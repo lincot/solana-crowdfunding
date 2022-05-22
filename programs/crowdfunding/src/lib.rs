@@ -17,7 +17,7 @@ pub mod crowdfunding {
     #[allow(clippy::too_many_arguments)]
     pub fn initialize(
         ctx: Context<Initialize>,
-        campaigns_capacity: u16,
+        active_campaigns_capacity: u16,
         incentive_cooldown: u32,
         incentive_amount: u64,
         platform_fee_num: u64,
@@ -27,7 +27,7 @@ pub mod crowdfunding {
     ) -> Result<()> {
         instructions::initialize(
             ctx,
-            campaigns_capacity,
+            active_campaigns_capacity,
             incentive_cooldown,
             incentive_amount,
             platform_fee_num,

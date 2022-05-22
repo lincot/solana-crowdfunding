@@ -52,7 +52,7 @@ pub struct Initialize<'info> {
 #[allow(clippy::too_many_arguments)]
 pub fn initialize(
     ctx: Context<Initialize>,
-    campaigns_capacity: u16,
+    active_campaigns_capacity: u16,
     incentive_cooldown: u32,
     incentive_amount: u64,
     platform_fee_num: u64,
@@ -65,7 +65,7 @@ pub fn initialize(
     ctx.accounts.platform.bump_sol_vault = *ctx.bumps.get("sol_vault").unwrap();
     ctx.accounts.platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
     ctx.accounts.platform.authority = ctx.accounts.platform_authority.key();
-    ctx.accounts.platform.campaigns_capacity = campaigns_capacity;
+    ctx.accounts.platform.active_campaigns_capacity = active_campaigns_capacity;
     ctx.accounts.platform.incentive_cooldown = incentive_cooldown;
     ctx.accounts.platform.incentive_amount = incentive_amount;
     ctx.accounts.platform.platform_fee_num = platform_fee_num;

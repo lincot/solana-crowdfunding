@@ -21,25 +21,34 @@ pub struct WithdrawDonations<'info> {
     system_program: Program<'info, System>,
 }
 
-pub fn withdraw_donations(ctx: Context<WithdrawDonations>) -> Result<()> {
-    let signers_seeds: &[&[&[u8]]] = &[&[b"sol_vault", &[ctx.accounts.platform.bump_sol_vault]]];
-    let mut campaign = (ctx.accounts.platform.campaigns)
-        .get_mut(ctx.accounts.campaign.id as usize)
-        .unwrap();
+fn withdraw_lamports(ctx: &Context<WithdrawDonations>, lamports: u64) -> Result<()> {
     invoke_signed(
         &system_instruction::transfer(
             ctx.accounts.sol_vault.key,
             ctx.accounts.campaign_authority.key,
-            campaign.donations_sum - campaign.withdrawn_sum,
+            lamports,
         ),
         &[
             ctx.accounts.sol_vault.to_account_info(),
             ctx.accounts.campaign_authority.to_account_info(),
         ],
-        signers_seeds,
+        &[&[b"sol_vault", &[ctx.accounts.platform.bump_sol_vault]]],
     )?;
+    Ok(())
+}
 
-    campaign.withdrawn_sum = campaign.donations_sum;
+pub fn withdraw_donations(ctx: Context<WithdrawDonations>) -> Result<()> {
+    let i = (ctx.accounts.platform.active_campaigns)
+        .binary_search_by_key(&ctx.accounts.campaign.id, |c| c.id)
+        .unwrap();
+    let lamports = {
+        let mut campaign = ctx.accounts.platform.active_campaigns.get_mut(i).unwrap();
+        let lamports = campaign.donations_sum - campaign.withdrawn_sum;
+        campaign.withdrawn_sum = campaign.donations_sum;
+        lamports
+    };
+
+    withdraw_lamports(&ctx, lamports)?;
 
     emit!(WithdrawDonationsEvent {});
 

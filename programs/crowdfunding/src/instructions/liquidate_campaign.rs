@@ -78,19 +78,16 @@ pub fn liquidate_campaign(ctx: Context<LiquidateCampaign>) -> Result<()> {
     }
     close_chrt_vaults(&ctx)?;
 
-    let mut closed_campaign = (ctx.accounts.platform.campaigns)
-        .get_mut(ctx.accounts.campaign.id as usize)
+    let i = (ctx.accounts.platform.active_campaigns)
+        .binary_search_by_key(&ctx.accounts.campaign.id, |c| c.id)
         .unwrap();
-    closed_campaign.is_closed = true;
+    let closed_campaign = ctx.accounts.platform.active_campaigns.remove(i);
     let liquidation_amount = closed_campaign.donations_sum - closed_campaign.withdrawn_sum;
     ctx.accounts.platform.liquidations_sum += liquidation_amount;
 
     let sum_of_active_campaign_donations = ctx.accounts.platform.sum_of_active_campaign_donations;
     let mut distributed_sum = 0;
-    for campaign in (ctx.accounts.platform.campaigns)
-        .iter_mut()
-        .filter(|c| !c.is_closed)
-    {
+    for campaign in ctx.accounts.platform.active_campaigns.iter_mut() {
         let share = liquidation_amount * campaign.donations_sum / sum_of_active_campaign_donations;
         campaign.donations_sum += share;
         distributed_sum += share;
