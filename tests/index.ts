@@ -438,16 +438,16 @@ describe("scenario", () => {
     await donate(ctx, ctx.donors[14], 5, 14);
     await donate(ctx, ctx.donors[2], 5, 2);
     await donate(ctx, ctx.donors[5], 5, 5);
-    await donate(ctx, ctx.donors[4], 5, 4);
     await donate(ctx, ctx.donors[1], 5, 1);
     await donate(ctx, ctx.donors[11], 5, 11);
     await donate(ctx, ctx.donors[12], 5, 12);
     await donate(ctx, ctx.donors[10], 5, 10);
     await donate(ctx, ctx.donors[9], 5, 9);
     await donate(ctx, ctx.donors[13], 5, 13);
-    await donate(ctx, ctx.donors[3], 5, 3);
     await donate(ctx, ctx.donors[7], 5, 7);
     await donate(ctx, ctx.donors[8], 5, 8);
+    await donate(ctx, ctx.donors[4], 5, 4);
+    await donate(ctx, ctx.donors[3], 5, 3);
 
     expect(await ctx.campaignTop(5)).to.eql([
       { donor: ctx.donors[14].publicKey, donationsSum: 14 },

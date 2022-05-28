@@ -108,32 +108,30 @@ fn transfer_to_platform(accounts: &Donate, lamports: u64) -> Result<()> {
 }
 
 fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: usize) {
-    let (cur_i, assigned) =
-        if let Some(cur_i) = top.iter().position(|d| d.donor == donor_record.donor) {
-            // assign new sum
-            top[cur_i] = donor_record;
-            (cur_i, true)
-        } else if top.len() < capacity {
-            // push new donor
-            top.push(donor_record);
-            (top.len() - 1, true)
-        } else {
-            // no space to push, so pretend it's the last
-            (top.len() - 1, false)
-        };
+    let cur_i = if let Some(cur_i) = top.iter().position(|d| d.donor == donor_record.donor) {
+        // assign new sum
+        top[cur_i] = donor_record;
 
-    if let Some(new_i) = top[..cur_i]
-        .iter()
-        .position(|d| d.donations_sum < donor_record.donations_sum)
-    {
-        // sort donor
-        top[new_i..=cur_i].rotate_right(1);
+        cur_i
+    } else if top.len() < capacity {
+        // push new donor
+        top.push(donor_record);
 
-        if !assigned {
-            // previously last donor gets replaced by new one
-            top[new_i] = donor_record;
+        top.len() - 1
+    } else {
+        // no space to push, so replace with last if eligible
+        let last = top.last_mut().unwrap();
+        if last.donations_sum > donor_record.donations_sum {
+            return;
         }
-    }
+        *last = donor_record;
+
+        top.len() - 1
+    };
+
+    // sort donor
+    let new_i = top[..cur_i].partition_point(|d| d.donations_sum >= donor_record.donations_sum);
+    top[new_i..=cur_i].rotate_right(1);
 }
 
 fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
