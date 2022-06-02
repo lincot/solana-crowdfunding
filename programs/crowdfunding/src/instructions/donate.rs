@@ -1,4 +1,4 @@
-use crate::{error::*, state::*, CHRT_DECIMALS};
+use crate::{config::*, error::*, state::*};
 use anchor_lang::{
     prelude::*,
     solana_program::{program::invoke, system_instruction},

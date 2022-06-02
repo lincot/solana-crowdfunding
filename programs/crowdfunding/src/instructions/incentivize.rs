@@ -1,8 +1,6 @@
-use crate::{error::*, state::*};
+use crate::{config::*, error::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
-
-const SEASONAL_TOP_CAPACITY: usize = 10;
 
 #[derive(Accounts)]
 pub struct Incentivize<'info> {

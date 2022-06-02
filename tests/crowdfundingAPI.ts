@@ -9,6 +9,7 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Context } from "./ctx";
 import { sha256 } from "js-sha256";
 import bs58 from "bs58";
+import { SEASONAL_TOP_CAPACITY } from "./config";
 
 export async function initializeCrowdfunding(
   ctx: Context,
@@ -159,7 +160,7 @@ export async function seasonalTop(ctx: Context): Promise<PublicKey[]> {
         .sub(b.incentivizedDonationsSum)
         .cmp(a.donationsSum.sub(a.incentivizedDonationsSum))
     )
-    .slice(0, 10)
+    .slice(0, SEASONAL_TOP_CAPACITY)
     .map((d) => d.authority);
 }
 

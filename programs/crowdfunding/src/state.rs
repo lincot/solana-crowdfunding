@@ -1,7 +1,5 @@
+use crate::config::*;
 use anchor_lang::prelude::*;
-
-pub const PLATFORM_TOP_CAPACITY: usize = 100;
-pub const CAMPAIGN_TOP_CAPACITY: usize = 10;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
 pub struct DonorRecord {

@@ -1,14 +1,13 @@
 use crate::instructions::*;
 use anchor_lang::prelude::*;
 
+pub mod config;
 pub mod error;
 pub mod instructions;
 pub mod state;
 pub mod utils;
 
 declare_id!("Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA");
-
-const CHRT_DECIMALS: u8 = 3;
 
 #[program]
 pub mod crowdfunding {

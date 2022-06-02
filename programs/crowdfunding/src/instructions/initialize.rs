@@ -1,4 +1,4 @@
-use crate::{state::*, CHRT_DECIMALS};
+use crate::{config::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
 
@@ -62,8 +62,8 @@ pub fn initialize(
 ) -> Result<()> {
     #[cfg(feature = "production")]
     {
-        require_eq!(platform_fee_num, 3);
-        require_eq!(platform_fee_denom, 100);
+        require_eq!(platform_fee_num, crate::config::PLATFORM_FEE_NUM);
+        require_eq!(platform_fee_denom, crate::config::PLATFORM_FEE_DENOM);
     }
 
     ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();
