@@ -1,4 +1,4 @@
-use crate::{config::*, error::*, state::*};
+use crate::{config::*, error::*, state::*, utils::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
 
@@ -39,7 +39,7 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
     }
     ctx.accounts.platform.last_incentive_ts = now;
 
-    let mut prev_donors = Vec::with_capacity(10);
+    let mut prev_donors = Vec::with_capacity(SEASONAL_TOP_CAPACITY);
 
     for pair in (ctx.remaining_accounts)
         .chunks_exact(2)
@@ -54,7 +54,7 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
             return err!(CrowdfundingError::NotEligibleForIncentive);
         }
         donor.incentivized_donations_sum = donor.donations_sum;
-        donor.try_serialize(&mut &mut pair[0].try_borrow_mut_data()?[..])?;
+        save(&donor, &pair[0])?;
 
         let donor_chrt = Account::<TokenAccount>::try_from(&pair[1])?;
         if donor_chrt.owner != donor.authority {

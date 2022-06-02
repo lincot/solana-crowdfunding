@@ -10,3 +10,10 @@ pub fn close(account: &AccountInfo, destination: &AccountInfo) -> Result<()> {
 
     Ok(())
 }
+
+pub fn save<'info, T: AccountSerialize + AccountDeserialize + Owner + Clone>(
+    acc: &Account<'info, T>,
+    info: &AccountInfo<'info>,
+) -> Result<()> {
+    acc.try_serialize(&mut *info.try_borrow_mut_data()?)
+}
