@@ -60,6 +60,12 @@ pub fn initialize(
     fee_exemption_limit: u64,
     liquidation_limit: u64,
 ) -> Result<()> {
+    #[cfg(feature = "production")]
+    {
+        require_eq!(platform_fee_num, 3);
+        require_eq!(platform_fee_denom, 100);
+    }
+
     ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();
     ctx.accounts.platform.bump_fee_vault = *ctx.bumps.get("fee_vault").unwrap();
     ctx.accounts.platform.bump_sol_vault = *ctx.bumps.get("sol_vault").unwrap();
