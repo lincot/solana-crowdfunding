@@ -23,8 +23,6 @@ impl CampaignRecord {
 #[account]
 pub struct Platform {
     pub bump: u8,
-    pub bump_fee_vault: u8,
-    pub bump_sol_vault: u8,
     pub bump_chrt_mint: u8,
     pub authority: Pubkey,
     pub campaigns_count: u16,
@@ -45,7 +43,7 @@ pub struct Platform {
 }
 impl Platform {
     pub const fn space(active_campaigns_capacity: u16) -> usize {
-        (1 + 1 + 1 + 1 + 32 + 2 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
+        (1 + 1 + 32 + 2 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
             + (4 + PLATFORM_TOP_CAPACITY * DonorRecord::SPACE)
             + (4 + active_campaigns_capacity as usize * CampaignRecord::SPACE)
     }
@@ -82,4 +80,12 @@ pub struct Donations {
 }
 impl Donations {
     pub const SPACE: usize = 1 + 8;
+}
+
+#[account]
+pub struct Vault {
+    pub bump: u8,
+}
+impl Vault {
+    pub const SPACE: usize = 1;
 }

@@ -15,26 +15,22 @@ pub struct Initialize<'info> {
     platform: Account<'info, Platform>,
     #[account(mut)]
     platform_authority: Signer<'info>,
-    /// CHECK:
     #[account(
         init,
         payer = platform_authority,
         seeds = [b"fee_vault"],
         bump,
-        space = 0,
-        owner = system_program.key(),
+        space = 8 + Vault::SPACE,
     )]
-    fee_vault: UncheckedAccount<'info>,
-    /// CHECK:
+    fee_vault: Account<'info, Vault>,
     #[account(
         init,
         payer = platform_authority,
         seeds = [b"sol_vault"],
         bump,
-        space = 0,
-        owner = system_program.key(),
+        space = 8 + Vault::SPACE,
     )]
-    sol_vault: UncheckedAccount<'info>,
+    sol_vault: Account<'info, Vault>,
     #[account(
         init,
         payer = platform_authority,
@@ -67,8 +63,6 @@ pub fn initialize(
     }
 
     ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();
-    ctx.accounts.platform.bump_fee_vault = *ctx.bumps.get("fee_vault").unwrap();
-    ctx.accounts.platform.bump_sol_vault = *ctx.bumps.get("sol_vault").unwrap();
     ctx.accounts.platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
     ctx.accounts.platform.authority = ctx.accounts.platform_authority.key();
     ctx.accounts.platform.active_campaigns_capacity = active_campaigns_capacity;
@@ -78,6 +72,10 @@ pub fn initialize(
     ctx.accounts.platform.platform_fee_denom = platform_fee_denom;
     ctx.accounts.platform.fee_exemption_limit = fee_exemption_limit;
     ctx.accounts.platform.liquidation_limit = liquidation_limit;
+
+    ctx.accounts.fee_vault.bump = *ctx.bumps.get("fee_vault").unwrap();
+
+    ctx.accounts.sol_vault.bump = *ctx.bumps.get("sol_vault").unwrap();
 
     emit!(InitializeEvent {});
 

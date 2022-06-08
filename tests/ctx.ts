@@ -24,7 +24,9 @@ export class Context {
   donors: Keypair[];
 
   constructor() {
-    this.connection = new Connection("http://localhost:8899", "recent");
+    const provider = anchor.AnchorProvider.env();
+    anchor.setProvider(provider);
+    this.connection = provider.connection;
     this.program = anchor.workspace.Crowdfunding;
     this.payer = new Keypair();
 
@@ -165,10 +167,16 @@ export class Context {
   }
 
   async solVaultBalance() {
-    return (await this.connection.getBalance(this.solVault)) - 890880;
+    return (
+      (await this.connection.getBalance(this.solVault)) -
+      (await this.connection.getMinimumBalanceForRentExemption(9))
+    );
   }
 
   async feeVaultBalance() {
-    return (await this.connection.getBalance(this.feeVault)) - 890880;
+    return (
+      (await this.connection.getBalance(this.feeVault)) -
+      (await this.connection.getMinimumBalanceForRentExemption(9))
+    );
   }
 }

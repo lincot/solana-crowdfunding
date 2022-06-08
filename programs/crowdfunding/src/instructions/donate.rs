@@ -11,12 +11,10 @@ use anchor_spl::token::{
 pub struct Donate<'info> {
     #[account(mut, seeds = [b"platform"], bump = platform.bump)]
     platform: Box<Account<'info, Platform>>,
-    /// CHECK:
-    #[account(mut, seeds = [b"fee_vault"], bump = platform.bump_fee_vault)]
-    fee_vault: UncheckedAccount<'info>,
-    /// CHECK:
-    #[account(mut, seeds = [b"sol_vault"], bump = platform.bump_sol_vault)]
-    sol_vault: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.bump)]
+    fee_vault: Account<'info, Vault>,
+    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.bump)]
+    sol_vault: Account<'info, Vault>,
     #[account(
         mut,
         seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
@@ -80,8 +78,8 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
 
     invoke(
         &system_instruction::transfer(
-            accounts.donor_authority.key,
-            accounts.sol_vault.key,
+            &accounts.donor_authority.key(),
+            &accounts.sol_vault.key(),
             lamports,
         ),
         &[
@@ -95,8 +93,8 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
 fn transfer_to_platform(accounts: &Donate, lamports: u64) -> Result<()> {
     invoke(
         &system_instruction::transfer(
-            accounts.donor_authority.key,
-            accounts.fee_vault.key,
+            &accounts.donor_authority.key(),
+            &accounts.fee_vault.key(),
             lamports,
         ),
         &[

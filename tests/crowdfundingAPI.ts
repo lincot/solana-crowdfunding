@@ -208,7 +208,6 @@ export async function withdrawDonations(
       solVault: ctx.solVault,
       campaign: await ctx.campaign(id),
       campaignAuthority: ctx.campaignAuthority.publicKey,
-      systemProgram: SystemProgram.programId,
     })
     .signers([ctx.campaignAuthority])
     .rpc();
@@ -258,7 +257,6 @@ export async function withdrawFees(ctx: Context): Promise<void> {
       platform: ctx.platform,
       platformAuthority: ctx.platformAuthority.publicKey,
       feeVault: ctx.feeVault,
-      systemProgram: SystemProgram.programId,
     })
     .signers([ctx.platformAuthority])
     .rpc();

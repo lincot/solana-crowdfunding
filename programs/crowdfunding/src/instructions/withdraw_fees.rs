@@ -1,8 +1,5 @@
-use crate::state::*;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{program::invoke_signed, system_instruction},
-};
+use crate::{state::*, utils::*};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct WithdrawFees<'info> {
@@ -10,24 +7,15 @@ pub struct WithdrawFees<'info> {
     platform: Account<'info, Platform>,
     #[account(mut, address = platform.authority)]
     platform_authority: Signer<'info>,
-    /// CHECK:
-    #[account(mut, seeds = [b"fee_vault"], bump = platform.bump_fee_vault)]
-    fee_vault: UncheckedAccount<'info>,
-    system_program: Program<'info, System>,
+    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.bump)]
+    fee_vault: Account<'info, Vault>,
 }
 
 pub fn withdraw_fees(ctx: Context<WithdrawFees>) -> Result<()> {
-    invoke_signed(
-        &system_instruction::transfer(
-            ctx.accounts.fee_vault.key,
-            ctx.accounts.platform_authority.key,
-            ctx.accounts.fee_vault.lamports() - Rent::get()?.minimum_balance(0),
-        ),
-        &[
-            ctx.accounts.fee_vault.to_account_info(),
-            ctx.accounts.platform_authority.to_account_info(),
-        ],
-        &[&[b"fee_vault", &[ctx.accounts.platform.bump_fee_vault]]],
+    transfer_all_but_rent(
+        &ctx.accounts.fee_vault.to_account_info(),
+        &ctx.accounts.platform_authority.to_account_info(),
+        8 + Vault::SPACE,
     )?;
 
     emit!(WithdrawFeesEvent {});

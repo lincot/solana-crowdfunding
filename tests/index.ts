@@ -47,8 +47,6 @@ describe("crowdfunding", () => {
 
     const platform = await ctx.program.account.platform.fetch(ctx.platform);
     expect(platform.bump).to.gt(200);
-    expect(platform.bumpFeeVault).to.gt(200);
-    expect(platform.bumpSolVault).to.gt(200);
     expect(platform.bumpChrtMint).to.gt(200);
     expect(platform.authority).to.eql(ctx.platformAuthority.publicKey);
     expect(platform.activeCampaignsCapacity).to.eql(activeCampaignsCapacity);
@@ -58,6 +56,12 @@ describe("crowdfunding", () => {
     expect(platform.platformFeeDenom.toNumber()).to.eql(platformFeeDenom);
     expect(platform.feeExemptionLimit.toNumber()).to.eql(feeExemptionLimit);
     expect(platform.liquidationLimit.toNumber()).to.eql(liquidationLimit);
+
+    const feeVault = await ctx.program.account.vault.fetch(ctx.feeVault);
+    expect(feeVault.bump).to.gt(200);
+
+    const solVault = await ctx.program.account.vault.fetch(ctx.solVault);
+    expect(solVault.bump).to.gt(200);
   });
 
   it("RegisterDonor", async () => {

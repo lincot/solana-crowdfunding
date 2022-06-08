@@ -1,17 +1,13 @@
-use crate::state::*;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{program::invoke_signed, system_instruction},
-};
+use crate::{state::*, utils::*};
+use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct StopCampaign<'info> {
     #[account(mut, seeds = [b"platform"], bump = platform.bump)]
     platform: Account<'info, Platform>,
-    /// CHECK:
-    #[account(mut, seeds = [b"sol_vault"], bump = platform.bump_sol_vault)]
-    sol_vault: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.bump)]
+    sol_vault: Account<'info, Vault>,
     #[account(mut, seeds = [b"chrt_mint"], bump = platform.bump_chrt_mint)]
     chrt_mint: Account<'info, Mint>,
     #[account(
@@ -72,22 +68,6 @@ fn close_chrt_vaults(ctx: &Context<StopCampaign>) -> Result<()> {
     Ok(())
 }
 
-fn withdraw_lamports(ctx: &Context<StopCampaign>, lamports: u64) -> Result<()> {
-    invoke_signed(
-        &system_instruction::transfer(
-            ctx.accounts.sol_vault.key,
-            ctx.accounts.campaign_authority.key,
-            lamports,
-        ),
-        &[
-            ctx.accounts.sol_vault.to_account_info(),
-            ctx.accounts.campaign_authority.to_account_info(),
-        ],
-        &[&[b"sol_vault", &[ctx.accounts.platform.bump_sol_vault]]],
-    )?;
-    Ok(())
-}
-
 pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
     close_chrt_vaults(&ctx)?;
 
@@ -96,7 +76,11 @@ pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
         .unwrap();
     let campaign = ctx.accounts.platform.active_campaigns.remove(i);
 
-    withdraw_lamports(&ctx, campaign.donations_sum - campaign.withdrawn_sum)?;
+    transfer(
+        &ctx.accounts.sol_vault.to_account_info(),
+        &ctx.accounts.campaign_authority.to_account_info(),
+        campaign.donations_sum - campaign.withdrawn_sum,
+    )?;
 
     ctx.accounts.platform.sum_of_active_campaign_donations -= campaign.donations_sum;
 
