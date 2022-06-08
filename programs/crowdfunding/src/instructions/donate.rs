@@ -32,8 +32,8 @@ pub struct Donate<'info> {
         bump = campaign.bump_fee_exemption_vault,
     )]
     fee_exemption_vault: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"donor", donor_authority.key().as_ref()], bump = donor.bump)]
-    donor: Account<'info, Donor>,
+    #[account(mut, seeds = [b"donor", donor_authority.key().as_ref()], bump = donor.load()?.bump)]
+    donor: AccountLoader<'info, Donor>,
     #[account(mut)]
     donor_authority: Signer<'info>,
     #[account(
@@ -54,10 +54,10 @@ pub struct DonateWithReferer<'info> {
     chrt_mint: Box<Account<'info, Mint>>,
     #[account(
         seeds = [b"donor", referer_authority.key().as_ref()],
-        bump = referer.bump,
+        bump = referer.load()?.bump,
         constraint = referer.key() != donate.donor.key() @ CrowdfundingError::CannotReferYourself,
     )]
-    referer: Account<'info, Donor>,
+    referer: AccountLoader<'info, Donor>,
     /// CHECK:
     referer_authority: UncheckedAccount<'info>,
     #[account(mut, token::authority = referer_authority)]
@@ -72,7 +72,7 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
     accounts.platform.active_campaigns[i].donations_sum += lamports;
     accounts.platform.sum_of_all_donations += lamports;
     accounts.platform.sum_of_active_campaign_donations += lamports;
-    accounts.donor.donations_sum += lamports;
+    accounts.donor.load_mut()?.donations_sum += lamports;
     accounts.total_donations_to_campaign.donations_sum += lamports;
     accounts.donor_donations_to_campaign.donations_sum += lamports;
 
@@ -146,7 +146,7 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         &mut accounts.platform.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            donations_sum: accounts.donor.donations_sum,
+            donations_sum: accounts.donor.load()?.donations_sum,
         },
         PLATFORM_TOP_CAPACITY,
     );

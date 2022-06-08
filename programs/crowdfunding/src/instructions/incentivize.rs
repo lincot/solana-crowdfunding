@@ -1,4 +1,4 @@
-use crate::{config::*, error::*, state::*, utils::*};
+use crate::{config::*, error::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
 
@@ -45,16 +45,16 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
         .chunks_exact(2)
         .take(SEASONAL_TOP_CAPACITY)
     {
-        let mut donor = Account::<Donor>::try_from(&pair[0])?;
-        if prev_donors.contains(&donor.key()) {
+        let donor = AccountLoader::<Donor>::try_from(&pair[0])?;
+        let mut donor = donor.load_mut()?;
+        if prev_donors.contains(&pair[0].key()) {
             return err!(CrowdfundingError::DuplicateInTop);
         }
-        prev_donors.push(donor.key());
+        prev_donors.push(pair[0].key());
         if donor.incentivized_donations_sum == donor.donations_sum {
             return err!(CrowdfundingError::NotEligibleForIncentive);
         }
         donor.incentivized_donations_sum = donor.donations_sum;
-        save(&donor, &pair[0])?;
 
         let donor_chrt = Account::<TokenAccount>::try_from(&pair[1])?;
         if donor_chrt.owner != donor.authority {

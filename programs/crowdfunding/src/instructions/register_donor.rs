@@ -8,17 +8,19 @@ pub struct RegisterDonor<'info> {
         payer = donor_authority,
         seeds = [b"donor", donor_authority.key().as_ref()],
         bump,
-        space = 8 + Donor::SPACE,
+        space = 8 + std::mem::size_of::<Donor>(),
     )]
-    donor: Account<'info, Donor>,
+    donor: AccountLoader<'info, Donor>,
     #[account(mut)]
     donor_authority: Signer<'info>,
     system_program: Program<'info, System>,
 }
 
 pub fn register_donor(ctx: Context<RegisterDonor>) -> Result<()> {
-    ctx.accounts.donor.bump = *ctx.bumps.get("donor").unwrap();
-    ctx.accounts.donor.authority = ctx.accounts.donor_authority.key();
+    let mut donor = ctx.accounts.donor.load_init()?;
+
+    donor.bump = *ctx.bumps.get("donor").unwrap();
+    donor.authority = ctx.accounts.donor_authority.key();
 
     emit!(RegisterDonorEvent {});
 

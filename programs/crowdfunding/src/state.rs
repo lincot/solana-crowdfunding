@@ -62,15 +62,13 @@ impl Campaign {
     pub const SPACE: usize = 1 + 1 + 1 + 32 + 2 + (4 + CAMPAIGN_TOP_CAPACITY * DonorRecord::SPACE);
 }
 
-#[account]
+#[account(zero_copy)]
+#[repr(packed)]
 pub struct Donor {
     pub bump: u8,
     pub authority: Pubkey,
     pub donations_sum: u64,
     pub incentivized_donations_sum: u64,
-}
-impl Donor {
-    pub const SPACE: usize = 1 + 32 + 8 + 8;
 }
 
 #[account]
