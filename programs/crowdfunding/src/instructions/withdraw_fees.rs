@@ -15,7 +15,6 @@ pub fn withdraw_fees(ctx: Context<WithdrawFees>) -> Result<()> {
     transfer_all_but_rent(
         &ctx.accounts.fee_vault.to_account_info(),
         &ctx.accounts.platform_authority.to_account_info(),
-        8 + Vault::SPACE,
     )?;
 
     emit!(WithdrawFeesEvent {});
