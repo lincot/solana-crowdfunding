@@ -56,10 +56,9 @@ pub fn initialize(
     fee_exemption_limit: u64,
     liquidation_limit: u64,
 ) -> Result<()> {
-    #[cfg(feature = "production")]
-    {
-        require_eq!(platform_fee_num, crate::config::PLATFORM_FEE_NUM);
-        require_eq!(platform_fee_denom, crate::config::PLATFORM_FEE_DENOM);
+    if cfg!(production) {
+        require_eq!(platform_fee_num, PLATFORM_FEE_NUM);
+        require_eq!(platform_fee_denom, PLATFORM_FEE_DENOM);
     }
 
     ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();

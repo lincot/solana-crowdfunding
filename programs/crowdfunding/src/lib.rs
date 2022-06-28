@@ -1,11 +1,11 @@
 use crate::instructions::*;
 use anchor_lang::prelude::*;
 
-pub mod config;
+mod config;
 pub mod error;
-pub mod instructions;
+mod instructions;
 pub mod state;
-pub mod utils;
+mod utils;
 
 declare_id!("Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA");
 
