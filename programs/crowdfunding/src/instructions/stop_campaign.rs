@@ -1,34 +1,34 @@
-use crate::{state::*, utils::*};
+use crate::{error::*, state::*, utils::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct StopCampaign<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.bump)]
-    platform: Account<'info, Platform>,
-    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.bump)]
-    sol_vault: Account<'info, Vault>,
-    #[account(mut, seeds = [b"chrt_mint"], bump = platform.bump_chrt_mint)]
+    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    platform: AccountLoader<'info, Platform>,
+    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.load()?.bump)]
+    sol_vault: AccountLoader<'info, Vault>,
+    #[account(mut, seeds = [b"chrt_mint"], bump = platform.load()?.bump_chrt_mint)]
     chrt_mint: Account<'info, Mint>,
     #[account(
         mut,
         close = campaign_authority,
-        seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump,
+        seeds = [b"campaign", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump,
     )]
-    campaign: Account<'info, Campaign>,
-    #[account(mut, address = campaign.authority)]
+    campaign: AccountLoader<'info, Campaign>,
+    #[account(mut, address = campaign.load()?.authority)]
     campaign_authority: Signer<'info>,
     #[account(
         mut,
-        seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_fee_exemption_vault,
+        seeds = [b"fee_exemption_vault", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump_fee_exemption_vault,
     )]
     fee_exemption_vault: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [b"liquidation_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_liquidation_vault,
+        seeds = [b"liquidation_vault", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump_liquidation_vault,
     )]
     liquidation_vault: Account<'info, TokenAccount>,
     token_program: Program<'info, Token>,
@@ -36,7 +36,7 @@ pub struct StopCampaign<'info> {
 }
 
 fn close_chrt_vaults(ctx: &Context<StopCampaign>) -> Result<()> {
-    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.platform.bump]]];
+    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.platform.load()?.bump]]];
 
     for vault in [
         &ctx.accounts.fee_exemption_vault,
@@ -71,10 +71,16 @@ fn close_chrt_vaults(ctx: &Context<StopCampaign>) -> Result<()> {
 pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
     close_chrt_vaults(&ctx)?;
 
-    let i = (ctx.accounts.platform.active_campaigns)
-        .binary_search_by_key(&ctx.accounts.campaign.id, |c| c.id)
-        .unwrap();
-    let campaign = ctx.accounts.platform.active_campaigns.remove(i);
+    let platform = &mut ctx.accounts.platform.load_mut()?;
+    let len = platform.active_campaigns_count as usize;
+    let id = ctx.accounts.campaign.load()?.id;
+    let i = platform.active_campaigns[..len]
+        .binary_search_by_key(&id, |c| c.id)
+        .map_err(|_| CrowdfundingError::CampaignInactive)?;
+    let campaign = platform.active_campaigns[i];
+    platform.active_campaigns[i] = Default::default();
+    platform.active_campaigns[i..len].rotate_left(1);
+    platform.active_campaigns_count -= 1;
 
     transfer(
         &ctx.accounts.sol_vault.to_account_info(),
@@ -82,7 +88,7 @@ pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
         campaign.donations_sum - campaign.withdrawn_sum,
     )?;
 
-    ctx.accounts.platform.sum_of_active_campaign_donations -= campaign.donations_sum;
+    platform.sum_of_active_campaign_donations -= campaign.donations_sum;
 
     emit!(StopCampaignEvent {});
 

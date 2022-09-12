@@ -27,7 +27,6 @@ before(async () => {
 
 describe("crowdfunding", () => {
   it("Initialize", async () => {
-    const activeCampaignsCapacity = 100;
     const incentiveCooldown = 2;
     const incentiveAmount = 1000;
     const platformFeeNum = 3;
@@ -36,7 +35,6 @@ describe("crowdfunding", () => {
     const liquidationLimit = 2000;
     await initializeCrowdfunding(
       ctx,
-      activeCampaignsCapacity,
       incentiveCooldown,
       incentiveAmount,
       platformFeeNum,
@@ -49,7 +47,6 @@ describe("crowdfunding", () => {
     expect(platform.bump).to.gt(200);
     expect(platform.bumpChrtMint).to.gt(200);
     expect(platform.authority).to.eql(ctx.platformAuthority.publicKey);
-    expect(platform.activeCampaignsCapacity).to.eql(activeCampaignsCapacity);
     expect(platform.incentiveCooldown).to.eql(incentiveCooldown);
     expect(platform.incentiveAmount.toNumber()).to.eql(incentiveAmount);
     expect(platform.platformFeeNum.toNumber()).to.eql(platformFeeNum);
@@ -237,7 +234,7 @@ describe("crowdfunding", () => {
     await stopCampaign(ctx, 0);
 
     await expect(donate(ctx, ctx.donors[5], 0, 1)).to.be.rejectedWith(
-      "AccountNotInitialized"
+      "AccountOwnedByWrongProgram"
     );
 
     expect(await ctx.activeCampaigns()).to.eql([
@@ -402,7 +399,7 @@ describe("scenario", () => {
     await liquidateCampaign(ctx, 2);
 
     await expect(donate(ctx, ctx.donors[5], 2, 1)).to.be.rejectedWith(
-      "AccountNotInitialized"
+      "AccountOwnedByWrongProgram"
     );
 
     expect(await ctx.activeCampaigns()).to.eql([

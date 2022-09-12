@@ -137,18 +137,27 @@ export class Context {
     const platform = await this.program.account.platform.fetch(this.platform);
 
     // @ts-ignore
-    return platform.activeCampaigns.map((c: any) => {
-      c.donationsSum = c.donationsSum.toNumber();
-      c.withdrawnSum = c.withdrawnSum.toNumber();
-      return c;
-    });
+    return platform.activeCampaigns
+      .slice(0, platform.activeCampaignsCount)
+      .map((c: any) => {
+        c.donationsSum = c.donationsSum.toNumber();
+        c.withdrawnSum = c.withdrawnSum.toNumber();
+        return c;
+      });
   }
 
   async platformTop() {
     const platform = await this.program.account.platform.fetch(this.platform);
 
     // @ts-ignore
-    return platform.top.map((d: any) => {
+    for (var i = 0; i < platform.top.length; i++) {
+      if (platform.top[i].donor.toBuffer().every((i) => i === 0)) {
+        break;
+      }
+    }
+
+    // @ts-ignore
+    return platform.top.slice(0, i).map((d: any) => {
       d.donationsSum = d.donationsSum.toNumber();
       return d;
     });
@@ -160,7 +169,14 @@ export class Context {
     );
 
     // @ts-ignore
-    return campaign.top.map((d: any) => {
+    for (var i = 0; i < campaign.top.length; i++) {
+      if (campaign.top[i].donor.toBuffer().every((i) => i === 0)) {
+        break;
+      }
+    }
+
+    // @ts-ignore
+    return campaign.top.slice(0, i).map((d: any) => {
       d.donationsSum = d.donationsSum.toNumber();
       return d;
     });

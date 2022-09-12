@@ -6,30 +6,31 @@ use anchor_lang::{
 use anchor_spl::token::{
     self, spl_token::native_mint::DECIMALS, Mint, MintTo, Token, TokenAccount,
 };
+use core::mem::size_of;
 
 #[derive(Accounts)]
 pub struct Donate<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.bump)]
-    platform: Box<Account<'info, Platform>>,
-    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.bump)]
-    fee_vault: Account<'info, Vault>,
-    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.bump)]
-    sol_vault: Account<'info, Vault>,
+    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    platform: AccountLoader<'info, Platform>,
+    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.load()?.bump)]
+    fee_vault: AccountLoader<'info, Vault>,
+    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.load()?.bump)]
+    sol_vault: AccountLoader<'info, Vault>,
     #[account(
         mut,
-        seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump,
+        seeds = [b"campaign", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump,
     )]
-    campaign: Account<'info, Campaign>,
+    campaign: AccountLoader<'info, Campaign>,
     #[account(
         mut,
         seeds = [b"donations", campaign.key().as_ref()],
-        bump = total_donations_to_campaign.bump,
+        bump = total_donations_to_campaign.load()?.bump,
     )]
-    total_donations_to_campaign: Account<'info, Donations>,
+    total_donations_to_campaign: AccountLoader<'info, Donations>,
     #[account(
-        seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_fee_exemption_vault,
+        seeds = [b"fee_exemption_vault", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump_fee_exemption_vault,
     )]
     fee_exemption_vault: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"donor", donor_authority.key().as_ref()], bump = donor.load()?.bump)]
@@ -41,24 +42,23 @@ pub struct Donate<'info> {
         payer = donor_authority,
         seeds = [b"donations", donor_authority.key().as_ref(), campaign.key().as_ref()],
         bump,
-        space = 8 + Donations::SPACE,
+        space = 8 + size_of::<Donations>(),
     )]
-    donor_donations_to_campaign: Account<'info, Donations>,
+    donor_donations_to_campaign: AccountLoader<'info, Donations>,
     system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct DonateWithReferer<'info> {
     donate: Donate<'info>,
-    #[account(mut, seeds = [b"chrt_mint"], bump = donate.platform.bump_chrt_mint)]
-    chrt_mint: Box<Account<'info, Mint>>,
+    #[account(mut, seeds = [b"chrt_mint"], bump = donate.platform.load()?.bump_chrt_mint)]
+    chrt_mint: Account<'info, Mint>,
     #[account(
         seeds = [b"donor", referer_authority.key().as_ref()],
         bump = referer.load()?.bump,
         constraint = referer.key() != donate.donor.key() @ CrowdfundingError::CannotReferYourself,
     )]
     referer: AccountLoader<'info, Donor>,
-    /// CHECK:
     referer_authority: UncheckedAccount<'info>,
     #[account(mut, token::authority = referer_authority)]
     referer_chrt: Account<'info, TokenAccount>,
@@ -66,15 +66,27 @@ pub struct DonateWithReferer<'info> {
 }
 
 fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    let i = (accounts.platform.active_campaigns)
-        .binary_search_by_key(&accounts.campaign.id, |c| c.id)
+    let platform = &mut accounts.platform.load_mut()?;
+    let id = accounts.campaign.load()?.id;
+    let i = platform.active_campaigns[..platform.active_campaigns_count as usize]
+        .binary_search_by_key(&id, |c| c.id)
         .unwrap();
-    accounts.platform.active_campaigns[i].donations_sum += lamports;
-    accounts.platform.sum_of_all_donations += lamports;
-    accounts.platform.sum_of_active_campaign_donations += lamports;
+    platform.active_campaigns[i].donations_sum += lamports;
+    platform.sum_of_all_donations += lamports;
+    platform.sum_of_active_campaign_donations += lamports;
     accounts.donor.load_mut()?.donations_sum += lamports;
-    accounts.total_donations_to_campaign.donations_sum += lamports;
-    accounts.donor_donations_to_campaign.donations_sum += lamports;
+    (accounts.total_donations_to_campaign.load_mut()?).donations_sum += lamports;
+    let donor_donations_to_campaign = &mut if accounts
+        .donor_donations_to_campaign
+        .to_account_info()
+        .try_borrow_data()?
+        .starts_with(&[0; 8])
+    {
+        accounts.donor_donations_to_campaign.load_init()?
+    } else {
+        accounts.donor_donations_to_campaign.load_mut()?
+    };
+    donor_donations_to_campaign.donations_sum += lamports;
 
     invoke(
         &system_instruction::transfer(
@@ -87,6 +99,7 @@ fn transfer_to_campaign(accounts: &mut Donate, lamports: u64) -> Result<()> {
             accounts.sol_vault.to_account_info(),
         ],
     )?;
+
     Ok(())
 }
 
@@ -105,17 +118,20 @@ fn transfer_to_platform(accounts: &Donate, lamports: u64) -> Result<()> {
     Ok(())
 }
 
-fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: usize) {
+fn add_to_top(top: &mut [DonorRecord], donor_record: DonorRecord) {
+    let top_len = top
+        .iter()
+        .position(|d| d.donor.to_bytes() == [0; 32])
+        .unwrap_or(top.len());
+
     let cur_i = if let Some(cur_i) = top.iter().position(|d| d.donor == donor_record.donor) {
         // assign new sum
         top[cur_i] = donor_record;
-
         cur_i
-    } else if top.len() < capacity {
+    } else if top_len < top.len() {
         // push new donor
-        top.push(donor_record);
-
-        top.len() - 1
+        top[top_len] = donor_record;
+        top_len
     } else {
         // no space to push, so replace with last if eligible
         let last = top.last_mut().unwrap();
@@ -123,7 +139,6 @@ fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: u
             return;
         }
         *last = donor_record;
-
         top.len() - 1
     };
 
@@ -133,30 +148,43 @@ fn add_to_top(top: &mut Vec<DonorRecord>, donor_record: DonorRecord, capacity: u
 }
 
 fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    let fee = lamports * accounts.platform.platform_fee_num / accounts.platform.platform_fee_denom;
-    if accounts.fee_exemption_vault.amount < accounts.platform.fee_exemption_limit {
+    let fee = lamports * accounts.platform.load()?.platform_fee_num
+        / accounts.platform.load()?.platform_fee_denom;
+    if accounts.fee_exemption_vault.amount < accounts.platform.load()?.fee_exemption_limit {
         transfer_to_campaign(accounts, lamports - fee)?;
         transfer_to_platform(accounts, fee)?;
     } else {
         transfer_to_campaign(accounts, lamports)?;
-        accounts.platform.avoided_fees_sum += fee;
+        accounts.platform.load_mut()?.avoided_fees_sum += fee;
     }
 
+    let platform = &mut accounts.platform.load_mut()?;
     add_to_top(
-        &mut accounts.platform.top,
+        &mut platform.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
             donations_sum: accounts.donor.load()?.donations_sum,
         },
-        PLATFORM_TOP_CAPACITY,
     );
+
+    let campaign = &mut accounts.campaign.load_mut()?;
+    let donations_sum = if accounts
+        .donor_donations_to_campaign
+        .to_account_info()
+        .try_borrow_data()?
+        .starts_with(&[0; 8])
+    {
+        accounts.donor_donations_to_campaign.load_init()?
+    } else {
+        accounts.donor_donations_to_campaign.load_mut()?
+    }
+    .donations_sum;
     add_to_top(
-        &mut accounts.campaign.top,
+        &mut campaign.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
-            donations_sum: accounts.donor_donations_to_campaign.donations_sum,
+            donations_sum,
         },
-        CAMPAIGN_TOP_CAPACITY,
     );
 
     Ok(())
@@ -174,7 +202,7 @@ pub fn donate(ctx: Context<Donate>, lamports: u64) -> Result<()> {
 struct DonateEvent {}
 
 fn mint_chrt_to_referer(ctx: Context<DonateWithReferer>, amount: u64) -> Result<()> {
-    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.donate.platform.bump]]];
+    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.donate.platform.load()?.bump]]];
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         MintTo {

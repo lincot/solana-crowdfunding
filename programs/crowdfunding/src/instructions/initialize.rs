@@ -1,18 +1,18 @@
 use crate::{config::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token};
+use core::mem::size_of;
 
 #[derive(Accounts)]
-#[instruction(campaigns_capacity: u16)]
 pub struct Initialize<'info> {
     #[account(
         init,
         payer = platform_authority,
         seeds = [b"platform"],
         bump,
-        space = 8 + Platform::space(campaigns_capacity),
+        space = 8 + size_of::<Platform>(),
     )]
-    platform: Account<'info, Platform>,
+    platform: AccountLoader<'info, Platform>,
     #[account(mut)]
     platform_authority: Signer<'info>,
     #[account(
@@ -20,17 +20,17 @@ pub struct Initialize<'info> {
         payer = platform_authority,
         seeds = [b"fee_vault"],
         bump,
-        space = 8 + Vault::SPACE,
+        space = 8 + size_of::<Vault>(),
     )]
-    fee_vault: Account<'info, Vault>,
+    fee_vault: AccountLoader<'info, Vault>,
     #[account(
         init,
         payer = platform_authority,
         seeds = [b"sol_vault"],
         bump,
-        space = 8 + Vault::SPACE,
+        space = 8 + size_of::<Vault>(),
     )]
-    sol_vault: Account<'info, Vault>,
+    sol_vault: AccountLoader<'info, Vault>,
     #[account(
         init,
         payer = platform_authority,
@@ -48,7 +48,6 @@ pub struct Initialize<'info> {
 #[allow(clippy::too_many_arguments)]
 pub fn initialize(
     ctx: Context<Initialize>,
-    active_campaigns_capacity: u16,
     incentive_cooldown: u32,
     incentive_amount: u64,
     platform_fee_num: u64,
@@ -61,20 +60,19 @@ pub fn initialize(
         require_eq!(platform_fee_denom, PLATFORM_FEE_DENOM);
     }
 
-    ctx.accounts.platform.bump = *ctx.bumps.get("platform").unwrap();
-    ctx.accounts.platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
-    ctx.accounts.platform.authority = ctx.accounts.platform_authority.key();
-    ctx.accounts.platform.active_campaigns_capacity = active_campaigns_capacity;
-    ctx.accounts.platform.incentive_cooldown = incentive_cooldown;
-    ctx.accounts.platform.incentive_amount = incentive_amount;
-    ctx.accounts.platform.platform_fee_num = platform_fee_num;
-    ctx.accounts.platform.platform_fee_denom = platform_fee_denom;
-    ctx.accounts.platform.fee_exemption_limit = fee_exemption_limit;
-    ctx.accounts.platform.liquidation_limit = liquidation_limit;
+    let platform = &mut ctx.accounts.platform.load_init()?;
+    platform.bump = *ctx.bumps.get("platform").unwrap();
+    platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
+    platform.authority = ctx.accounts.platform_authority.key();
+    platform.incentive_cooldown = incentive_cooldown;
+    platform.incentive_amount = incentive_amount;
+    platform.platform_fee_num = platform_fee_num;
+    platform.platform_fee_denom = platform_fee_denom;
+    platform.fee_exemption_limit = fee_exemption_limit;
+    platform.liquidation_limit = liquidation_limit;
 
-    ctx.accounts.fee_vault.bump = *ctx.bumps.get("fee_vault").unwrap();
-
-    ctx.accounts.sol_vault.bump = *ctx.bumps.get("sol_vault").unwrap();
+    ctx.accounts.fee_vault.load_init()?.bump = *ctx.bumps.get("fee_vault").unwrap();
+    ctx.accounts.sol_vault.load_init()?.bump = *ctx.bumps.get("sol_vault").unwrap();
 
     emit!(InitializeEvent {});
 

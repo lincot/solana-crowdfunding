@@ -1,5 +1,6 @@
 use crate::state::*;
 use anchor_lang::prelude::*;
+use core::mem::size_of;
 
 #[derive(Accounts)]
 pub struct RegisterDonor<'info> {
@@ -8,7 +9,7 @@ pub struct RegisterDonor<'info> {
         payer = donor_authority,
         seeds = [b"donor", donor_authority.key().as_ref()],
         bump,
-        space = 8 + std::mem::size_of::<Donor>(),
+        space = 8 + size_of::<Donor>(),
     )]
     donor: AccountLoader<'info, Donor>,
     #[account(mut)]

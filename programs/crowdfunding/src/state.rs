@@ -1,32 +1,30 @@
+#![allow(unaligned_references)]
+
 use crate::config::*;
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
+#[repr(packed)]
 pub struct DonorRecord {
     pub donor: Pubkey,
     pub donations_sum: u64,
 }
-impl DonorRecord {
-    pub const SPACE: usize = 32 + 8;
-}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
+#[repr(packed)]
 pub struct CampaignRecord {
     pub id: u16,
     pub donations_sum: u64,
     pub withdrawn_sum: u64,
 }
-impl CampaignRecord {
-    pub const SPACE: usize = 2 + 8 + 8;
-}
 
-#[account]
+#[account(zero_copy)]
+#[repr(packed)]
 pub struct Platform {
     pub bump: u8,
     pub bump_chrt_mint: u8,
     pub authority: Pubkey,
     pub campaigns_count: u16,
-    pub active_campaigns_capacity: u16,
     pub incentive_cooldown: u32,
     pub incentive_amount: u64,
     pub platform_fee_num: u64,
@@ -38,28 +36,20 @@ pub struct Platform {
     pub sum_of_active_campaign_donations: u64,
     pub avoided_fees_sum: u64,
     pub liquidations_sum: u64,
-    pub top: Vec<DonorRecord>,
-    pub active_campaigns: Vec<CampaignRecord>,
-}
-impl Platform {
-    pub const fn space(active_campaigns_capacity: u16) -> usize {
-        (1 + 1 + 32 + 2 + 2 + 4 + 8 + 8 + 8 + 8 + 8 + 4 + 8 + 8 + 8 + 8)
-            + (4 + PLATFORM_TOP_CAPACITY * DonorRecord::SPACE)
-            + (4 + active_campaigns_capacity as usize * CampaignRecord::SPACE)
-    }
+    pub top: [DonorRecord; PLATFORM_TOP_CAPACITY],
+    pub active_campaigns: [CampaignRecord; ACTIVE_CAMPAIGNS_CAPACITY],
+    pub active_campaigns_count: u16,
 }
 
-#[account]
+#[account(zero_copy)]
+#[repr(packed)]
 pub struct Campaign {
     pub bump: u8,
     pub bump_fee_exemption_vault: u8,
     pub bump_liquidation_vault: u8,
     pub authority: Pubkey,
     pub id: u16,
-    pub top: Vec<DonorRecord>,
-}
-impl Campaign {
-    pub const SPACE: usize = 1 + 1 + 1 + 32 + 2 + (4 + CAMPAIGN_TOP_CAPACITY * DonorRecord::SPACE);
+    pub top: [DonorRecord; CAMPAIGN_TOP_CAPACITY],
 }
 
 #[account(zero_copy)]
@@ -71,19 +61,15 @@ pub struct Donor {
     pub incentivized_donations_sum: u64,
 }
 
-#[account]
+#[account(zero_copy)]
+#[repr(packed)]
 pub struct Donations {
     pub bump: u8,
     pub donations_sum: u64,
 }
-impl Donations {
-    pub const SPACE: usize = 1 + 8;
-}
 
-#[account]
+#[account(zero_copy)]
+#[repr(packed)]
 pub struct Vault {
     pub bump: u8,
-}
-impl Vault {
-    pub const SPACE: usize = 1;
 }

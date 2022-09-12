@@ -1,14 +1,15 @@
 [features]
-seeds = false
+skip-lint = true
+
 [programs.localnet]
 crowdfunding = "Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA"
 
-[registry]
-url = "https://anchor.projectserum.com"
+[test]
+startup_wait = 30000
 
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn ts-mocha -p ./tsconfig.json --no-timeouts --slow 0 --exit tests/**/*.ts"

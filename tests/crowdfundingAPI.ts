@@ -13,7 +13,6 @@ import { SEASONAL_TOP_CAPACITY } from "./config";
 
 export async function initializeCrowdfunding(
   ctx: Context,
-  activeCampaignsCapacity: number,
   incentiveCooldown: number,
   incentiveAmount: number | BN,
   platformFeeNum: number | BN,
@@ -23,7 +22,6 @@ export async function initializeCrowdfunding(
 ): Promise<void> {
   await ctx.program.methods
     .initialize(
-      activeCampaignsCapacity,
       incentiveCooldown,
       new BN(incentiveAmount),
       new BN(platformFeeNum),

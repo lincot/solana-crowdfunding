@@ -3,12 +3,12 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct WithdrawFees<'info> {
-    #[account(seeds = [b"platform"], bump = platform.bump)]
-    platform: Account<'info, Platform>,
-    #[account(mut, address = platform.authority)]
+    #[account(seeds = [b"platform"], bump = platform.load()?.bump)]
+    platform: AccountLoader<'info, Platform>,
+    #[account(mut, address = platform.load()?.authority)]
     platform_authority: Signer<'info>,
-    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.bump)]
-    fee_vault: Account<'info, Vault>,
+    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.load()?.bump)]
+    fee_vault: AccountLoader<'info, Vault>,
 }
 
 pub fn withdraw_fees(ctx: Context<WithdrawFees>) -> Result<()> {

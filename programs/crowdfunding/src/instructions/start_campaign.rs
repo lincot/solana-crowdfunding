@@ -1,21 +1,22 @@
-use crate::{error::*, state::*};
+use crate::{config::*, error::*, state::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
+use core::mem::size_of;
 
 #[derive(Accounts)]
 pub struct StartCampaign<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.bump)]
-    platform: Account<'info, Platform>,
-    #[account(seeds = [b"chrt_mint"], bump = platform.bump_chrt_mint)]
+    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    platform: AccountLoader<'info, Platform>,
+    #[account(seeds = [b"chrt_mint"], bump = platform.load()?.bump_chrt_mint)]
     chrt_mint: Account<'info, Mint>,
     #[account(
         init,
         payer = campaign_authority,
-        seeds = [b"campaign", platform.campaigns_count.to_le_bytes().as_ref()],
+        seeds = [b"campaign", platform.load()?.campaigns_count.to_le_bytes().as_ref()],
         bump,
-        space = 8 + Campaign::SPACE,
+        space = 8 + size_of::<Campaign>(),
     )]
-    campaign: Account<'info, Campaign>,
+    campaign: AccountLoader<'info, Campaign>,
     #[account(mut)]
     campaign_authority: Signer<'info>,
     #[account(
@@ -23,13 +24,13 @@ pub struct StartCampaign<'info> {
         payer = campaign_authority,
         seeds = [b"donations", campaign.key().as_ref()],
         bump,
-        space = 8 + Donations::SPACE,
+        space = 8 + size_of::<Donations>(),
     )]
-    total_donations_to_campaign: Account<'info, Donations>,
+    total_donations_to_campaign: AccountLoader<'info, Donations>,
     #[account(
         init,
         payer = campaign_authority,
-        seeds = [b"fee_exemption_vault", platform.campaigns_count.to_le_bytes().as_ref()],
+        seeds = [b"fee_exemption_vault", platform.load()?.campaigns_count.to_le_bytes().as_ref()],
         bump,
         token::authority = platform,
         token::mint = chrt_mint,
@@ -38,7 +39,7 @@ pub struct StartCampaign<'info> {
     #[account(
         init,
         payer = campaign_authority,
-        seeds = [b"liquidation_vault", platform.campaigns_count.to_le_bytes().as_ref()],
+        seeds = [b"liquidation_vault", platform.load()?.campaigns_count.to_le_bytes().as_ref()],
         bump,
         token::authority = platform,
         token::mint = chrt_mint,
@@ -50,25 +51,27 @@ pub struct StartCampaign<'info> {
 }
 
 pub fn start_campaign(ctx: Context<StartCampaign>) -> Result<()> {
-    if ctx.accounts.platform.active_campaigns_capacity
-        <= ctx.accounts.platform.active_campaigns.len() as _
-    {
+    let platform = &mut ctx.accounts.platform.load_mut()?;
+    if ACTIVE_CAMPAIGNS_CAPACITY as u16 <= platform.active_campaigns_count {
         return err!(CrowdfundingError::ActiveCampaignsLimit);
     }
-    let id = ctx.accounts.platform.campaigns_count;
-    ctx.accounts.platform.active_campaigns.push(CampaignRecord {
+    let id = platform.campaigns_count;
+    let len = platform.active_campaigns_count as usize;
+    platform.active_campaigns[len] = CampaignRecord {
         id,
         ..Default::default()
-    });
-    ctx.accounts.platform.campaigns_count += 1;
+    };
+    platform.campaigns_count += 1;
+    platform.active_campaigns_count += 1;
 
-    ctx.accounts.campaign.bump = *ctx.bumps.get("campaign").unwrap();
-    ctx.accounts.campaign.bump_fee_exemption_vault = *ctx.bumps.get("fee_exemption_vault").unwrap();
-    ctx.accounts.campaign.bump_liquidation_vault = *ctx.bumps.get("liquidation_vault").unwrap();
-    ctx.accounts.campaign.authority = ctx.accounts.campaign_authority.key();
-    ctx.accounts.campaign.id = id;
+    let campaign = &mut ctx.accounts.campaign.load_init()?;
+    campaign.bump = *ctx.bumps.get("campaign").unwrap();
+    campaign.bump_fee_exemption_vault = *ctx.bumps.get("fee_exemption_vault").unwrap();
+    campaign.bump_liquidation_vault = *ctx.bumps.get("liquidation_vault").unwrap();
+    campaign.authority = ctx.accounts.campaign_authority.key();
+    campaign.id = id;
 
-    ctx.accounts.total_donations_to_campaign.bump =
+    ctx.accounts.total_donations_to_campaign.load_init()?.bump =
         *ctx.bumps.get("total_donations_to_campaign").unwrap();
 
     emit!(StartCampaignEvent {});

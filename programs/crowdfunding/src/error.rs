@@ -20,4 +20,7 @@ pub enum CrowdfundingError {
     /// 6005 0x1775
     #[msg("Seasonal top contains duplicates")]
     DuplicateInTop,
+    /// 6006 0x1776
+    #[msg("Campaign is not active")]
+    CampaignInactive,
 }

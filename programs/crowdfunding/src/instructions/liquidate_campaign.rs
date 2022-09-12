@@ -4,34 +4,33 @@ use anchor_spl::token::{self, Burn, CloseAccount, Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct LiquidateCampaign<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.bump)]
-    platform: Account<'info, Platform>,
-    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.bump)]
-    fee_vault: Account<'info, Vault>,
-    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.bump)]
-    sol_vault: Account<'info, Vault>,
-    #[account(mut, seeds = [b"chrt_mint"], bump = platform.bump_chrt_mint)]
+    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    platform: AccountLoader<'info, Platform>,
+    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.load()?.bump)]
+    fee_vault: AccountLoader<'info, Vault>,
+    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.load()?.bump)]
+    sol_vault: AccountLoader<'info, Vault>,
+    #[account(mut, seeds = [b"chrt_mint"], bump = platform.load()?.bump_chrt_mint)]
     chrt_mint: Account<'info, Mint>,
     #[account(
         mut,
         close = campaign_authority,
-        seeds = [b"campaign", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump,
+        seeds = [b"campaign", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump,
     )]
-    campaign: Account<'info, Campaign>,
-    /// CHECK:
-    #[account(mut, address = campaign.authority)]
+    campaign: AccountLoader<'info, Campaign>,
+    #[account(mut, address = campaign.load()?.authority)]
     campaign_authority: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [b"fee_exemption_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_fee_exemption_vault,
+        seeds = [b"fee_exemption_vault", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump_fee_exemption_vault,
     )]
     fee_exemption_vault: Account<'info, TokenAccount>,
     #[account(
         mut,
-        seeds = [b"liquidation_vault", campaign.id.to_le_bytes().as_ref()],
-        bump = campaign.bump_liquidation_vault,
+        seeds = [b"liquidation_vault", campaign.load()?.id.to_le_bytes().as_ref()],
+        bump = campaign.load()?.bump_liquidation_vault,
     )]
     liquidation_vault: Account<'info, TokenAccount>,
     token_program: Program<'info, Token>,
@@ -39,7 +38,7 @@ pub struct LiquidateCampaign<'info> {
 }
 
 fn close_chrt_vaults(ctx: &Context<LiquidateCampaign>) -> Result<()> {
-    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.platform.bump]]];
+    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.platform.load()?.bump]]];
 
     for vault in [
         &ctx.accounts.fee_exemption_vault,
@@ -72,29 +71,34 @@ fn close_chrt_vaults(ctx: &Context<LiquidateCampaign>) -> Result<()> {
 }
 
 pub fn liquidate_campaign(ctx: Context<LiquidateCampaign>) -> Result<()> {
-    if ctx.accounts.liquidation_vault.amount < ctx.accounts.platform.liquidation_limit {
+    if ctx.accounts.liquidation_vault.amount < ctx.accounts.platform.load()?.liquidation_limit {
         return err!(CrowdfundingError::NotEnoughCHRTInVault);
     }
     close_chrt_vaults(&ctx)?;
 
-    let i = (ctx.accounts.platform.active_campaigns)
-        .binary_search_by_key(&ctx.accounts.campaign.id, |c| c.id)
-        .unwrap();
-    let closed_campaign = ctx.accounts.platform.active_campaigns.remove(i);
-    let liquidation_amount = closed_campaign.donations_sum - closed_campaign.withdrawn_sum;
-    ctx.accounts.platform.liquidations_sum += liquidation_amount;
+    let platform = &mut ctx.accounts.platform.load_mut()?;
+    let len = platform.active_campaigns_count as usize;
+    let id = ctx.accounts.campaign.load()?.id;
+    let i = platform.active_campaigns[..len]
+        .binary_search_by_key(&id, |c| c.id)
+        .map_err(|_| CrowdfundingError::CampaignInactive)?;
+    let campaign = platform.active_campaigns[i];
+    platform.active_campaigns[i] = Default::default();
+    platform.active_campaigns[i..len].rotate_left(1);
+    platform.active_campaigns_count -= 1;
+    let liquidation_amount = campaign.donations_sum - campaign.withdrawn_sum;
+    platform.liquidations_sum += liquidation_amount;
 
-    let remaining_sum =
-        ctx.accounts.platform.sum_of_active_campaign_donations - closed_campaign.donations_sum;
+    let remaining_sum = platform.sum_of_active_campaign_donations - campaign.donations_sum;
     let mut distributed_sum = 0;
-    for campaign in &mut ctx.accounts.platform.active_campaigns {
-        let share = liquidation_amount * campaign.donations_sum / remaining_sum;
-        campaign.donations_sum += share;
+    for active_campaign in &mut platform.active_campaigns {
+        let share = liquidation_amount * active_campaign.donations_sum / remaining_sum;
+        active_campaign.donations_sum += share;
         distributed_sum += share;
     }
 
     let not_distributed = liquidation_amount - distributed_sum;
-    ctx.accounts.platform.sum_of_active_campaign_donations -= not_distributed;
+    platform.sum_of_active_campaign_donations -= not_distributed;
     transfer(
         &ctx.accounts.sol_vault.to_account_info(),
         &ctx.accounts.fee_vault.to_account_info(),
