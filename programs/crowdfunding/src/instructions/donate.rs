@@ -24,7 +24,7 @@ pub struct Donate<'info> {
     campaign: AccountLoader<'info, Campaign>,
     #[account(
         mut,
-        seeds = [b"donations", campaign.key().as_ref()],
+        seeds = [b"donations", campaign.load()?.id.to_le_bytes().as_ref()],
         bump = total_donations_to_campaign.load()?.bump,
     )]
     total_donations_to_campaign: AccountLoader<'info, Donations>,
@@ -40,7 +40,7 @@ pub struct Donate<'info> {
     #[account(
         init_if_needed,
         payer = donor_authority,
-        seeds = [b"donations", donor_authority.key().as_ref(), campaign.key().as_ref()],
+        seeds = [b"donations", donor_authority.key().as_ref(), campaign.load()?.id.to_le_bytes().as_ref()],
         bump,
         space = 8 + size_of::<Donations>(),
     )]

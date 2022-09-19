@@ -3,14 +3,14 @@
 use crate::config::*;
 use anchor_lang::prelude::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[repr(packed)]
 pub struct DonorRecord {
     pub donor: Pubkey,
     pub donations_sum: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default)]
+#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[repr(packed)]
 pub struct CampaignRecord {
     pub id: u16,
@@ -42,6 +42,7 @@ pub struct Platform {
 }
 
 #[account(zero_copy)]
+#[derive(Debug)]
 #[repr(packed)]
 pub struct Campaign {
     pub bump: u8,
@@ -53,6 +54,7 @@ pub struct Campaign {
 }
 
 #[account(zero_copy)]
+#[derive(Debug)]
 #[repr(packed)]
 pub struct Donor {
     pub bump: u8,
@@ -62,6 +64,7 @@ pub struct Donor {
 }
 
 #[account(zero_copy)]
+#[derive(Debug)]
 #[repr(packed)]
 pub struct Donations {
     pub bump: u8,
@@ -69,6 +72,7 @@ pub struct Donations {
 }
 
 #[account(zero_copy)]
+#[derive(Debug)]
 #[repr(packed)]
 pub struct Vault {
     pub bump: u8,

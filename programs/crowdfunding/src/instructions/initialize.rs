@@ -45,7 +45,6 @@ pub struct Initialize<'info> {
     system_program: Program<'info, System>,
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn initialize(
     ctx: Context<Initialize>,
     incentive_cooldown: u32,

@@ -22,7 +22,7 @@ pub struct StartCampaign<'info> {
     #[account(
         init,
         payer = campaign_authority,
-        seeds = [b"donations", campaign.key().as_ref()],
+        seeds = [b"donations", platform.load()?.campaigns_count.to_le_bytes().as_ref()],
         bump,
         space = 8 + size_of::<Donations>(),
     )]

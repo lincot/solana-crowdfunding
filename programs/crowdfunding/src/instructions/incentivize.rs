@@ -53,7 +53,7 @@ pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -
             return err!(CrowdfundingError::DuplicateInTop);
         }
 
-        unsafe { prev_donors.push_unchecked(pair[0].key()) };
+        prev_donors.push(pair[0].key()).unwrap();
         if donor.incentivized_donations_sum == donor.donations_sum {
             return err!(CrowdfundingError::NotEligibleForIncentive);
         }

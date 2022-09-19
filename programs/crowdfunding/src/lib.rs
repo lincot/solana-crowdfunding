@@ -1,7 +1,7 @@
 use crate::instructions::*;
 use anchor_lang::prelude::*;
 
-mod config;
+pub mod config;
 pub mod error;
 mod instructions;
 pub mod state;
@@ -13,7 +13,6 @@ declare_id!("Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA");
 pub mod crowdfunding {
     use super::*;
 
-    #[allow(clippy::too_many_arguments)]
     pub fn initialize(
         ctx: Context<Initialize>,
         incentive_cooldown: u32,
