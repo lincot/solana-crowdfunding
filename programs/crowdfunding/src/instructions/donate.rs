@@ -10,30 +10,30 @@ use core::mem::size_of;
 
 #[derive(Accounts)]
 pub struct Donate<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    #[account(mut, seeds = [b"platform"], bump)]
     platform: AccountLoader<'info, Platform>,
-    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.load()?.bump)]
+    #[account(mut, seeds = [b"fee_vault"], bump)]
     fee_vault: AccountLoader<'info, Vault>,
-    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.load()?.bump)]
+    #[account(mut, seeds = [b"sol_vault"], bump)]
     sol_vault: AccountLoader<'info, Vault>,
     #[account(
         mut,
         seeds = [b"campaign", campaign.load()?.id.to_le_bytes().as_ref()],
-        bump = campaign.load()?.bump,
+        bump,
     )]
     campaign: AccountLoader<'info, Campaign>,
     #[account(
         mut,
         seeds = [b"donations", campaign.load()?.id.to_le_bytes().as_ref()],
-        bump = total_donations_to_campaign.load()?.bump,
+        bump,
     )]
     total_donations_to_campaign: AccountLoader<'info, Donations>,
     #[account(
         seeds = [b"fee_exemption_vault", campaign.load()?.id.to_le_bytes().as_ref()],
-        bump = campaign.load()?.bump_fee_exemption_vault,
+        bump,
     )]
     fee_exemption_vault: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"donor", donor_authority.key().as_ref()], bump = donor.load()?.bump)]
+    #[account(mut, seeds = [b"donor", donor_authority.key().as_ref()], bump)]
     donor: AccountLoader<'info, Donor>,
     #[account(mut)]
     donor_authority: Signer<'info>,
@@ -51,11 +51,11 @@ pub struct Donate<'info> {
 #[derive(Accounts)]
 pub struct DonateWithReferer<'info> {
     donate: Donate<'info>,
-    #[account(mut, seeds = [b"chrt_mint"], bump = donate.platform.load()?.bump_chrt_mint)]
+    #[account(mut, seeds = [b"chrt_mint"], bump)]
     chrt_mint: Account<'info, Mint>,
     #[account(
         seeds = [b"donor", referer_authority.key().as_ref()],
-        bump = referer.load()?.bump,
+        bump,
         constraint = referer.key() != donate.donor.key() @ CrowdfundingError::CannotReferYourself,
     )]
     referer: AccountLoader<'info, Donor>,
@@ -202,7 +202,7 @@ pub fn donate(ctx: Context<Donate>, lamports: u64) -> Result<()> {
 struct DonateEvent {}
 
 fn mint_chrt_to_referer(ctx: Context<DonateWithReferer>, amount: u64) -> Result<()> {
-    let signer: &[&[&[u8]]] = &[&[b"platform", &[ctx.accounts.donate.platform.load()?.bump]]];
+    let signer: &[&[&[u8]]] = &[&[b"platform", &[*ctx.bumps.get("platform").unwrap()]]];
     let cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
         MintTo {

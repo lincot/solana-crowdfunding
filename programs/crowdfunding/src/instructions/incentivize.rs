@@ -4,11 +4,11 @@ use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct Incentivize<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    #[account(mut, seeds = [b"platform"], bump)]
     platform: AccountLoader<'info, Platform>,
     #[account(address = platform.load()?.authority)]
     platform_authority: Signer<'info>,
-    #[account(mut, seeds = [b"chrt_mint"], bump = platform.load()?.bump_chrt_mint)]
+    #[account(mut, seeds = [b"chrt_mint"], bump)]
     chrt_mint: Account<'info, Mint>,
     token_program: Program<'info, Token>,
 }
@@ -25,7 +25,7 @@ fn mint_chrt<'info>(
                 to: donor_chrt.to_account_info(),
                 authority: ctx.accounts.platform.to_account_info(),
             },
-            &[&[b"platform", &[ctx.accounts.platform.load()?.bump]]],
+            &[&[b"platform", &[*ctx.bumps.get("platform").unwrap()]]],
         ),
         ctx.accounts.platform.load()?.incentive_amount,
     )

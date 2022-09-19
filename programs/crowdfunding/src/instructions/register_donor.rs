@@ -20,7 +20,6 @@ pub struct RegisterDonor<'info> {
 pub fn register_donor(ctx: Context<RegisterDonor>) -> Result<()> {
     let mut donor = ctx.accounts.donor.load_init()?;
 
-    donor.bump = *ctx.bumps.get("donor").unwrap();
     donor.authority = ctx.accounts.donor_authority.key();
 
     emit!(RegisterDonorEvent {});

@@ -45,8 +45,6 @@ async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     .unwrap();
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
-    assert!(platform.bump > 200);
-    assert!(platform.bump_chrt_mint > 200);
     assert_eq!(platform.authority, ctx.platform_authority.pubkey());
     assert_eq!(platform.incentive_cooldown, incentive_cooldown);
     assert_eq!(platform.incentive_amount, incentive_amount);
@@ -54,12 +52,6 @@ async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     assert_eq!(platform.platform_fee_denom, platform_fee_denom);
     assert_eq!(platform.fee_exemption_limit, fee_exemption_limit);
     assert_eq!(platform.liquidation_limit, liquidation_limit);
-
-    let fee_vault: Vault = fetch(ptc, ctx.fee_vault).await;
-    assert!(fee_vault.bump > 200);
-
-    let sol_vault: Vault = fetch(ptc, ctx.sol_vault).await;
-    assert!(sol_vault.bump > 200);
 }
 
 async fn test_register_donor(ptc: &mut ProgramTestContext, ctx: &Ctx) {
@@ -68,7 +60,6 @@ async fn test_register_donor(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     }
 
     let donor: Donor = fetch(ptc, find_donor(ctx.donors[0].pubkey())).await;
-    assert!(donor.bump > 200);
     assert_eq!(donor.authority, ctx.donors[0].pubkey());
 }
 
@@ -76,9 +67,6 @@ async fn test_start_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     start_campaign(ptc, ctx).await.unwrap();
 
     let campaign: Campaign = fetch(ptc, find_campaign(0)).await;
-    assert!(campaign.bump > 200);
-    assert!(campaign.bump_fee_exemption_vault > 200);
-    assert!(campaign.bump_liquidation_vault > 200);
     assert_eq!(campaign.authority, ctx.campaign_authority.pubkey());
     assert_eq!(campaign.id, 0);
 

@@ -3,13 +3,13 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct WithdrawDonations<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    #[account(mut, seeds = [b"platform"], bump)]
     platform: AccountLoader<'info, Platform>,
-    #[account(mut, seeds = [b"sol_vault"], bump = sol_vault.load()?.bump)]
+    #[account(mut, seeds = [b"sol_vault"], bump)]
     sol_vault: AccountLoader<'info, Vault>,
     #[account(
         seeds = [b"campaign", campaign.load()?.id.to_le_bytes().as_ref()],
-        bump = campaign.load()?.bump,
+        bump,
     )]
     campaign: AccountLoader<'info, Campaign>,
     #[account(mut, address = campaign.load()?.authority)]

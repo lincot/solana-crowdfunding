@@ -60,8 +60,6 @@ pub fn initialize(
     }
 
     let platform = &mut ctx.accounts.platform.load_init()?;
-    platform.bump = *ctx.bumps.get("platform").unwrap();
-    platform.bump_chrt_mint = *ctx.bumps.get("chrt_mint").unwrap();
     platform.authority = ctx.accounts.platform_authority.key();
     platform.incentive_cooldown = incentive_cooldown;
     platform.incentive_amount = incentive_amount;
@@ -69,9 +67,6 @@ pub fn initialize(
     platform.platform_fee_denom = platform_fee_denom;
     platform.fee_exemption_limit = fee_exemption_limit;
     platform.liquidation_limit = liquidation_limit;
-
-    ctx.accounts.fee_vault.load_init()?.bump = *ctx.bumps.get("fee_vault").unwrap();
-    ctx.accounts.sol_vault.load_init()?.bump = *ctx.bumps.get("sol_vault").unwrap();
 
     emit!(InitializeEvent {});
 

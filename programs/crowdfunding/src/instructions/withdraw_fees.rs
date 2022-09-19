@@ -3,11 +3,11 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct WithdrawFees<'info> {
-    #[account(seeds = [b"platform"], bump = platform.load()?.bump)]
+    #[account(seeds = [b"platform"], bump)]
     platform: AccountLoader<'info, Platform>,
     #[account(mut, address = platform.load()?.authority)]
     platform_authority: Signer<'info>,
-    #[account(mut, seeds = [b"fee_vault"], bump = fee_vault.load()?.bump)]
+    #[account(mut, seeds = [b"fee_vault"], bump)]
     fee_vault: AccountLoader<'info, Vault>,
 }
 

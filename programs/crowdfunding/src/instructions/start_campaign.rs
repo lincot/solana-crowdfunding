@@ -5,9 +5,9 @@ use core::mem::size_of;
 
 #[derive(Accounts)]
 pub struct StartCampaign<'info> {
-    #[account(mut, seeds = [b"platform"], bump = platform.load()?.bump)]
+    #[account(mut, seeds = [b"platform"], bump)]
     platform: AccountLoader<'info, Platform>,
-    #[account(seeds = [b"chrt_mint"], bump = platform.load()?.bump_chrt_mint)]
+    #[account(seeds = [b"chrt_mint"], bump)]
     chrt_mint: Account<'info, Mint>,
     #[account(
         init,
@@ -65,14 +65,8 @@ pub fn start_campaign(ctx: Context<StartCampaign>) -> Result<()> {
     platform.active_campaigns_count += 1;
 
     let campaign = &mut ctx.accounts.campaign.load_init()?;
-    campaign.bump = *ctx.bumps.get("campaign").unwrap();
-    campaign.bump_fee_exemption_vault = *ctx.bumps.get("fee_exemption_vault").unwrap();
-    campaign.bump_liquidation_vault = *ctx.bumps.get("liquidation_vault").unwrap();
     campaign.authority = ctx.accounts.campaign_authority.key();
     campaign.id = id;
-
-    ctx.accounts.total_donations_to_campaign.load_init()?.bump =
-        *ctx.bumps.get("total_donations_to_campaign").unwrap();
 
     emit!(StartCampaignEvent {});
 
