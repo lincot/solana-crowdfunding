@@ -1,16 +1,14 @@
-#![allow(unaligned_references)]
-
 use crate::config::*;
 use anchor_lang::prelude::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[repr(packed)]
 pub struct DonorRecord {
     pub donor: Pubkey,
     pub donations_sum: u64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(AnchorDeserialize, Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[repr(packed)]
 pub struct CampaignRecord {
     pub id: u16,

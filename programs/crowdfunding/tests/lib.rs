@@ -1,5 +1,4 @@
 #![cfg(feature = "test-bpf")]
-#![allow(unaligned_references)]
 #![feature(assert_matches)]
 
 use solana_program_test::tokio;

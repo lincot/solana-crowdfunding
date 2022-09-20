@@ -45,13 +45,20 @@ async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     .unwrap();
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
+
     assert_eq!(platform.authority, ctx.platform_authority.pubkey());
-    assert_eq!(platform.incentive_cooldown, incentive_cooldown);
-    assert_eq!(platform.incentive_amount, incentive_amount);
-    assert_eq!(platform.platform_fee_num, platform_fee_num);
-    assert_eq!(platform.platform_fee_denom, platform_fee_denom);
-    assert_eq!(platform.fee_exemption_limit, fee_exemption_limit);
-    assert_eq!(platform.liquidation_limit, liquidation_limit);
+    let platform_incentive_cooldown = platform.incentive_cooldown;
+    assert_eq!(platform_incentive_cooldown, incentive_cooldown);
+    let platform_incentive_amount = platform.incentive_amount;
+    assert_eq!(platform_incentive_amount, incentive_amount);
+    let platform_platform_fee_num = platform.platform_fee_num;
+    assert_eq!(platform_platform_fee_num, platform_fee_num);
+    let platform_platform_fee_denom = platform.platform_fee_denom;
+    assert_eq!(platform_platform_fee_denom, platform_fee_denom);
+    let platform_fee_exemption_limit = platform.fee_exemption_limit;
+    assert_eq!(platform_fee_exemption_limit, fee_exemption_limit);
+    let platform_liquidation_limit = platform.liquidation_limit;
+    assert_eq!(platform_liquidation_limit, liquidation_limit);
 }
 
 async fn test_register_donor(ptc: &mut ProgramTestContext, ctx: &Ctx) {
@@ -68,7 +75,8 @@ async fn test_start_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 
     let campaign: Campaign = fetch(ptc, find_campaign(0)).await;
     assert_eq!(campaign.authority, ctx.campaign_authority.pubkey());
-    assert_eq!(campaign.id, 0);
+    let campaign_id = campaign.id;
+    assert_eq!(campaign_id, 0);
 
     let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
     assert_eq!(
@@ -104,8 +112,10 @@ async fn test_donate(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     donate(ptc, ctx, &ctx.donors[0], 0, 100).await.unwrap();
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
-    assert_eq!(platform.sum_of_all_donations, 97);
-    assert_eq!(platform.sum_of_active_campaign_donations, 97);
+    let sum_of_all_donations = platform.sum_of_all_donations;
+    assert_eq!(sum_of_all_donations, 97);
+    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
+    assert_eq!(sum_of_active_campaign_donations, 97);
 
     let donor: Donor = fetch(ptc, find_donor(ctx.donors[0].pubkey())).await;
     assert_eq!(donor.donations_sum, 97);
@@ -173,8 +183,10 @@ async fn test_donate_with_referer(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     assert_eq!(donor_chrt.amount, 1);
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
-    assert_eq!(platform.sum_of_all_donations, 97 + 9700);
-    assert_eq!(platform.sum_of_active_campaign_donations, 97 + 9700);
+    let sum_of_all_donations = platform.sum_of_all_donations;
+    assert_eq!(sum_of_all_donations, 97 + 9700);
+    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
+    assert_eq!(sum_of_active_campaign_donations, 97 + 9700);
 
     let donor: Donor = fetch(ptc, find_donor(ctx.donors[1].pubkey())).await;
     assert_eq!(donor.donations_sum, 9700);
@@ -255,7 +267,8 @@ async fn test_incentivize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     let clock: Clock = ptc.banks_client.get_sysvar().await.unwrap();
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
-    assert_eq!(platform.last_incentive_ts, clock.unix_timestamp as u32);
+    let last_incentive_ts = platform.last_incentive_ts;
+    assert_eq!(last_incentive_ts, clock.unix_timestamp as u32);
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
@@ -332,7 +345,8 @@ async fn test_stop_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     );
 
     let platform: Platform = fetch(ptc, ctx.platform).await;
-    assert_eq!(platform.sum_of_active_campaign_donations, 0);
+    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
+    assert_eq!(sum_of_active_campaign_donations, 0);
 
     stop_campaign(ptc, ctx, 1).await.unwrap();
 
