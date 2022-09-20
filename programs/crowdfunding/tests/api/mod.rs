@@ -136,8 +136,7 @@ pub async fn initialize(
     ctx: &Ctx,
     incentive_cooldown: u32,
     incentive_amount: u64,
-    platform_fee_num: u64,
-    platform_fee_denom: u64,
+    fee_basis_points: u16,
     fee_exemption_limit: u64,
     liquidation_limit: u64,
 ) -> Result<(), BanksClientError> {
@@ -148,8 +147,7 @@ pub async fn initialize(
                 data: crowdfunding::instruction::Initialize {
                     incentive_cooldown,
                     incentive_amount,
-                    platform_fee_num,
-                    platform_fee_denom,
+                    fee_basis_points,
                     fee_exemption_limit,
                     liquidation_limit,
                 }

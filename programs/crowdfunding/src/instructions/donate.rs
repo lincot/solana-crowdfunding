@@ -148,8 +148,7 @@ fn add_to_top(top: &mut [DonorRecord], donor_record: DonorRecord) {
 }
 
 fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    let fee = lamports * accounts.platform.load()?.platform_fee_num
-        / accounts.platform.load()?.platform_fee_denom;
+    let fee = lamports * accounts.platform.load()?.fee_basis_points as u64 / 10000;
     if accounts.fee_exemption_vault.amount < accounts.platform.load()?.fee_exemption_limit {
         transfer_to_campaign(accounts, lamports - fee)?;
         transfer_to_platform(accounts, fee)?;

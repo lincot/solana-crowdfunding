@@ -26,8 +26,7 @@ pub async fn test_instructions() {
 async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     let incentive_cooldown = 2;
     let incentive_amount = 1000;
-    let platform_fee_num = 3;
-    let platform_fee_denom = 100;
+    let fee_basis_points = 300;
     let fee_exemption_limit = 1000;
     let liquidation_limit = 2000;
 
@@ -36,8 +35,7 @@ async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
         ctx,
         incentive_cooldown,
         incentive_amount,
-        platform_fee_num,
-        platform_fee_denom,
+        fee_basis_points,
         fee_exemption_limit,
         liquidation_limit,
     )
@@ -51,10 +49,8 @@ async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     assert_eq!(platform_incentive_cooldown, incentive_cooldown);
     let platform_incentive_amount = platform.incentive_amount;
     assert_eq!(platform_incentive_amount, incentive_amount);
-    let platform_platform_fee_num = platform.platform_fee_num;
-    assert_eq!(platform_platform_fee_num, platform_fee_num);
-    let platform_platform_fee_denom = platform.platform_fee_denom;
-    assert_eq!(platform_platform_fee_denom, platform_fee_denom);
+    let platform_fee_basis_points = platform.fee_basis_points;
+    assert_eq!(platform_fee_basis_points, fee_basis_points);
     let platform_fee_exemption_limit = platform.fee_exemption_limit;
     assert_eq!(platform_fee_exemption_limit, fee_exemption_limit);
     let platform_liquidation_limit = platform.liquidation_limit;

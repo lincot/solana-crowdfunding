@@ -49,22 +49,15 @@ pub fn initialize(
     ctx: Context<Initialize>,
     incentive_cooldown: u32,
     incentive_amount: u64,
-    platform_fee_num: u64,
-    platform_fee_denom: u64,
+    fee_basis_points: u16,
     fee_exemption_limit: u64,
     liquidation_limit: u64,
 ) -> Result<()> {
-    if cfg!(production) {
-        require_eq!(platform_fee_num, PLATFORM_FEE_NUM);
-        require_eq!(platform_fee_denom, PLATFORM_FEE_DENOM);
-    }
-
     let platform = &mut ctx.accounts.platform.load_init()?;
     platform.authority = ctx.accounts.platform_authority.key();
     platform.incentive_cooldown = incentive_cooldown;
     platform.incentive_amount = incentive_amount;
-    platform.platform_fee_num = platform_fee_num;
-    platform.platform_fee_denom = platform_fee_denom;
+    platform.fee_basis_points = fee_basis_points;
     platform.fee_exemption_limit = fee_exemption_limit;
     platform.liquidation_limit = liquidation_limit;
 

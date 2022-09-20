@@ -26,7 +26,7 @@ pub async fn scenario_test() {
 }
 
 async fn initializes(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    initialize(ptc, ctx, 0, 10000, 3, 100, 1000, 2000)
+    initialize(ptc, ctx, 0, 10000, 300, 1000, 2000)
         .await
         .unwrap();
 }
