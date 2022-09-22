@@ -68,10 +68,5 @@ pub fn start_campaign(ctx: Context<StartCampaign>) -> Result<()> {
     campaign.authority = ctx.accounts.campaign_authority.key();
     campaign.id = id;
 
-    emit!(StartCampaignEvent {});
-
     Ok(())
 }
-
-#[event]
-struct StartCampaignEvent {}

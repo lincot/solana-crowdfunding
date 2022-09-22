@@ -13,4 +13,4 @@ pub const PLATFORM_TOP_CAPACITY: usize = 128;
 #[constant]
 pub const CAMPAIGN_TOP_CAPACITY: usize = 10;
 #[constant]
-pub const ACTIVE_CAMPAIGNS_CAPACITY: usize = 256;
+pub const ACTIVE_CAMPAIGNS_CAPACITY: usize = 128;

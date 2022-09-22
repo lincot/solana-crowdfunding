@@ -15,16 +15,16 @@ pub mod crowdfunding {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        incentive_cooldown: u32,
-        incentive_amount: u64,
+        reward_cooldown: u32,
+        reward_amount: u64,
         fee_basis_points: u16,
         fee_exemption_limit: u64,
         liquidation_limit: u64,
     ) -> Result<()> {
         instructions::initialize(
             ctx,
-            incentive_cooldown,
-            incentive_amount,
+            reward_cooldown,
+            reward_amount,
             fee_basis_points,
             fee_exemption_limit,
             liquidation_limit,
@@ -47,8 +47,12 @@ pub mod crowdfunding {
         instructions::donate_with_referer(ctx, amount)
     }
 
-    pub fn incentivize<'info>(ctx: Context<'_, '_, '_, 'info, Incentivize<'info>>) -> Result<()> {
-        instructions::incentivize(ctx)
+    pub fn record_donors(ctx: Context<RecordDonors>) -> Result<()> {
+        instructions::record_donors(ctx)
+    }
+
+    pub fn drop_rewards<'info>(ctx: Context<'_, '_, '_, 'info, DropRewards<'info>>) -> Result<()> {
+        instructions::drop_rewards(ctx)
     }
 
     pub fn withdraw_donations(ctx: Context<WithdrawDonations>) -> Result<()> {

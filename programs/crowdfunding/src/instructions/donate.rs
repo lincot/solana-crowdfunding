@@ -1,4 +1,4 @@
-use crate::{config::*, error::*, state::*};
+use crate::{config::*, error::*, state::*, utils::*};
 use anchor_lang::{
     prelude::*,
     solana_program::{program::invoke, system_instruction},
@@ -6,7 +6,7 @@ use anchor_lang::{
 use anchor_spl::token::{
     self, spl_token::native_mint::DECIMALS, Mint, MintTo, Token, TokenAccount,
 };
-use core::mem::size_of;
+use core::{mem::size_of, ops::Deref};
 
 #[derive(Accounts)]
 pub struct Donate<'info> {
@@ -118,38 +118,20 @@ fn transfer_to_platform(accounts: &Donate, lamports: u64) -> Result<()> {
     Ok(())
 }
 
-fn add_to_top(top: &mut [DonorRecord], donor_record: DonorRecord) {
-    let top_len = top
-        .iter()
-        .position(|d| d.donor.to_bytes() == [0; 32])
-        .unwrap_or(top.len());
-
-    let cur_i = if let Some(cur_i) = top.iter().position(|d| d.donor == donor_record.donor) {
-        // assign new sum
-        top[cur_i] = donor_record;
-        cur_i
-    } else if top_len < top.len() {
-        // push new donor
-        top[top_len] = donor_record;
-        top_len
-    } else {
-        // no space to push, so replace with last if eligible
-        let last = top.last_mut().unwrap();
-        if last.donations_sum > donor_record.donations_sum {
-            return;
-        }
-        *last = donor_record;
-        top.len() - 1
-    };
-
-    // sort donor
-    let new_i = top[..cur_i].partition_point(|d| d.donations_sum >= donor_record.donations_sum);
-    top[new_i..=cur_i].rotate_right(1);
-}
-
 fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
-    let fee = lamports * accounts.platform.load()?.fee_basis_points as u64 / 10000;
-    if accounts.fee_exemption_vault.amount < accounts.platform.load()?.fee_exemption_limit {
+    let &Platform {
+        reward_procedure_is_in_process,
+        fee_basis_points,
+        fee_exemption_limit,
+        ..
+    } = accounts.platform.load()?.deref();
+
+    if reward_procedure_is_in_process {
+        return err!(CrowdfundingError::RewardProcedureInProcess);
+    }
+
+    let fee = lamports * fee_basis_points as u64 / 10000;
+    if accounts.fee_exemption_vault.amount < fee_exemption_limit {
         transfer_to_campaign(accounts, lamports - fee)?;
         transfer_to_platform(accounts, fee)?;
     } else {
@@ -157,29 +139,29 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
         accounts.platform.load_mut()?.avoided_fees_sum += fee;
     }
 
-    let platform = &mut accounts.platform.load_mut()?;
     add_to_top(
-        &mut platform.top,
+        &mut accounts.platform.load_mut()?.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
             donations_sum: accounts.donor.load()?.donations_sum,
         },
     );
 
-    let campaign = &mut accounts.campaign.load_mut()?;
     let donations_sum = if accounts
         .donor_donations_to_campaign
         .to_account_info()
         .try_borrow_data()?
         .starts_with(&[0; 8])
     {
-        accounts.donor_donations_to_campaign.load_init()?
+        accounts
+            .donor_donations_to_campaign
+            .load_init()?
+            .donations_sum
     } else {
-        accounts.donor_donations_to_campaign.load_mut()?
-    }
-    .donations_sum;
+        accounts.donor_donations_to_campaign.load()?.donations_sum
+    };
     add_to_top(
-        &mut campaign.top,
+        &mut accounts.campaign.load_mut()?.top,
         DonorRecord {
             donor: accounts.donor_authority.key(),
             donations_sum,
@@ -192,13 +174,8 @@ fn donate_common(accounts: &mut Donate, lamports: u64) -> Result<()> {
 pub fn donate(ctx: Context<Donate>, lamports: u64) -> Result<()> {
     donate_common(ctx.accounts, lamports)?;
 
-    emit!(DonateEvent {});
-
     Ok(())
 }
-
-#[event]
-struct DonateEvent {}
 
 fn mint_chrt_to_referer(ctx: Context<DonateWithReferer>, amount: u64) -> Result<()> {
     let signer: &[&[&[u8]]] = &[&[b"platform", &[*ctx.bumps.get("platform").unwrap()]]];
@@ -222,10 +199,5 @@ pub fn donate_with_referer(ctx: Context<DonateWithReferer>, lamports: u64) -> Re
         101 * lamports / 10u64.pow((DECIMALS - CHRT_DECIMALS) as _),
     )?;
 
-    emit!(DonateWithRefererEvent {});
-
     Ok(())
 }
-
-#[event]
-struct DonateWithRefererEvent {}

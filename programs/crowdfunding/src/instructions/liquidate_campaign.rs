@@ -105,10 +105,5 @@ pub fn liquidate_campaign(ctx: Context<LiquidateCampaign>) -> Result<()> {
         not_distributed,
     )?;
 
-    emit!(LiquidateCampaignEvent {});
-
     Ok(())
 }
-
-#[event]
-struct LiquidateCampaignEvent {}

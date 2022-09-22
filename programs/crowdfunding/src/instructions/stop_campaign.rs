@@ -90,10 +90,5 @@ pub fn stop_campaign(ctx: Context<StopCampaign>) -> Result<()> {
 
     platform.sum_of_active_campaign_donations -= campaign.donations_sum;
 
-    emit!(StopCampaignEvent {});
-
     Ok(())
 }
-
-#[event]
-struct StopCampaignEvent {}

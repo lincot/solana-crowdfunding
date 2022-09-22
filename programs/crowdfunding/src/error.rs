@@ -12,15 +12,21 @@ pub enum CrowdfundingError {
     #[msg("Referring yourself is not allowed")]
     CannotReferYourself,
     /// 6003 0x1773
-    #[msg("Incentive cooldown time has not passed")]
-    IncentiveCooldown,
+    #[msg("Reward cooldown time has not passed")]
+    RewardCooldown,
     /// 6004 0x1774
-    #[msg("Donor is not eligible for incentive")]
-    NotEligibleForIncentive,
+    #[msg("Donors can only be recorded for reward once")]
+    CannotRecordTwice,
     /// 6005 0x1775
-    #[msg("Seasonal top contains duplicates")]
-    DuplicateInTop,
-    /// 6006 0x1776
     #[msg("Campaign is not active")]
     CampaignInactive,
+    /// 6006 0x1776
+    #[msg("All the donors must be recorded before reward drop")]
+    NotAllDonorsRecorded,
+    /// 6007 0x1777
+    #[msg("Donors passed for reward must match those in seasonal top")]
+    IncorrectSeasonalTop,
+    /// 6008 0x1778
+    #[msg("Cannot donate during reward procedure")]
+    RewardProcedureInProcess,
 }

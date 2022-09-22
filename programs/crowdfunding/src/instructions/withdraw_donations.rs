@@ -36,10 +36,5 @@ pub fn withdraw_donations(ctx: Context<WithdrawDonations>) -> Result<()> {
         lamports,
     )?;
 
-    emit!(WithdrawDonationsEvent {});
-
     Ok(())
 }
-
-#[event]
-struct WithdrawDonationsEvent {}

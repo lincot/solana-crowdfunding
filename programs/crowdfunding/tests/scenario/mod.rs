@@ -2,7 +2,7 @@ use crate::{api::*, ctx::*, utils::*};
 use anchor_lang::prelude::ErrorCode;
 use anchor_spl::token::TokenAccount;
 use core::assert_matches::assert_matches;
-use crowdfunding::state::*;
+use crowdfunding::{error::*, state::*};
 use solana_program::instruction::InstructionError;
 use solana_program_test::*;
 use solana_sdk::{signer::Signer, transaction::TransactionError};
@@ -33,14 +33,14 @@ async fn initializes(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 
 async fn registers_donors(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     for donor in &ctx.donors {
-        register_donor(ptc, donor).await.unwrap();
+        register_donor(ptc, ctx, donor).await.unwrap();
     }
 }
 
 async fn starts_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     start_campaign(ptc, ctx).await.unwrap();
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [CampaignRecord {
@@ -53,7 +53,7 @@ async fn starts_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 
 async fn donates(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     donate(ptc, ctx, &ctx.donors[0], 0, 100).await.unwrap();
-    let (platform_top, len) = fetch_platform_top(ptc, ctx).await;
+    let (platform_top, len) = fetch_platform_top(ptc, ctx).await.unwrap();
     assert_eq!(
         platform_top[..len],
         [DonorRecord {
@@ -63,7 +63,7 @@ async fn donates(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     );
 
     donate(ptc, ctx, &ctx.donors[0], 0, 1000).await.unwrap();
-    let (platform_top, len) = fetch_platform_top(ptc, ctx).await;
+    let (platform_top, len) = fetch_platform_top(ptc, ctx).await.unwrap();
     assert_eq!(
         platform_top[..len],
         [DonorRecord {
@@ -73,7 +73,7 @@ async fn donates(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     );
 
     donate(ptc, ctx, &ctx.donors[2], 0, 10000).await.unwrap();
-    let (platform_top, len) = fetch_platform_top(ptc, ctx).await;
+    let (platform_top, len) = fetch_platform_top(ptc, ctx).await.unwrap();
     assert_eq!(
         &platform_top[..len],
         [
@@ -89,7 +89,7 @@ async fn donates(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     );
 
     donate(ptc, ctx, &ctx.donors[3], 0, 1).await.unwrap();
-    let (platform_top, len) = fetch_platform_top(ptc, ctx).await;
+    let (platform_top, len) = fetch_platform_top(ptc, ctx).await.unwrap();
     assert_eq!(
         &platform_top[..len],
         [
@@ -110,7 +110,7 @@ async fn donates(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 }
 
 async fn withdraws_donations(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [CampaignRecord {
@@ -122,8 +122,8 @@ async fn withdraws_donations(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 
     withdraw_donations(ptc, ctx, 0).await.unwrap();
 
-    assert_eq!(get_sol_vault_balance(ptc, ctx).await, 0);
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    assert_eq!(get_sol_vault_balance(ptc, ctx).await.unwrap(), 0);
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [CampaignRecord {
@@ -137,45 +137,60 @@ async fn withdraws_donations(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 async fn withdraws_fees(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     withdraw_fees(ptc, ctx).await.unwrap();
 
-    assert_eq!(get_fee_vault_balance(ptc, ctx).await, 0);
+    assert_eq!(get_fee_vault_balance(ptc, ctx).await.unwrap(), 0);
 }
 
 async fn incentivizes(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    incentivize(ptc, ctx).await.unwrap();
+    record_donors(ptc, ctx).await.unwrap();
+
+    const CODE: u32 = 6000 + CrowdfundingError::RewardProcedureInProcess as u32;
+    assert_matches!(
+        donate(ptc, ctx, &ctx.donors[5], 0, 1).await,
+        Err(BanksClientError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::Custom(CODE))
+        ))
+    );
+
+    drop_rewards(ptc, ctx).await.unwrap();
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
         get_associated_token_address(&ctx.donors[0].pubkey(), &ctx.chrt_mint),
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(donor_chrt.amount, 10000);
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
         get_associated_token_address(&ctx.donors[1].pubkey(), &ctx.chrt_mint),
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(donor_chrt.amount, 0);
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
         get_associated_token_address(&ctx.donors[2].pubkey(), &ctx.chrt_mint),
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(donor_chrt.amount, 10000);
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
         get_associated_token_address(&ctx.donors[3].pubkey(), &ctx.chrt_mint),
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(donor_chrt.amount, 10000);
 
     let donor_chrt: TokenAccount = fetch(
         ptc,
         get_associated_token_address(&ctx.donors[4].pubkey(), &ctx.chrt_mint),
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(donor_chrt.amount, 0);
 }
 
@@ -191,7 +206,7 @@ async fn exempts_from_fees(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     .unwrap();
 
     donate(ptc, ctx, &ctx.donors[3], 0, 100_000).await.unwrap();
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [CampaignRecord {
@@ -206,7 +221,7 @@ async fn starts_more_campaigns_and_donates(ptc: &mut ProgramTestContext, ctx: &C
     start_campaign(ptc, ctx).await.unwrap();
     start_campaign(ptc, ctx).await.unwrap();
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [
@@ -231,7 +246,7 @@ async fn starts_more_campaigns_and_donates(ptc: &mut ProgramTestContext, ctx: &C
     donate(ptc, ctx, &ctx.donors[3], 1, 1).await.unwrap();
     donate(ptc, ctx, &ctx.donors[3], 2, 9).await.unwrap();
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [
@@ -255,14 +270,13 @@ async fn starts_more_campaigns_and_donates(ptc: &mut ProgramTestContext, ctx: &C
 }
 
 async fn liquidates_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    // this causes the next liquidate_campaign to panic
-    // const CODE: u32 = 6000 + CrowdfundingError::NotEnoughCHRTInVault as u32;
-    // assert_matches!(
-    //     liquidate_campaign(ptc, ctx, 0).await,
-    //     Err(BanksClientError::TransactionError(
-    //         TransactionError::InstructionError(0, InstructionError::Custom(CODE))
-    //     ))
-    // );
+    const CODE: u32 = 6000 + CrowdfundingError::NotEnoughCHRTInVault as u32;
+    assert_matches!(
+        liquidate_campaign(ptc, ctx, 0).await,
+        Err(BanksClientError::TransactionError(
+            TransactionError::InstructionError(0, InstructionError::Custom(CODE))
+        ))
+    );
 
     transfer_tokens(
         ptc,
@@ -276,15 +290,15 @@ async fn liquidates_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 
     liquidate_campaign(ptc, ctx, 0).await.unwrap();
 
-    const CODE: u32 = ErrorCode::AccountOwnedByWrongProgram as u32;
+    const CODE2: u32 = ErrorCode::AccountOwnedByWrongProgram as u32;
     assert_matches!(
-        donate(ptc, ctx, &ctx.donors[5], 0, 1).await,
+        donate(ptc, ctx, &ctx.donors[5], 0, 2).await,
         Err(BanksClientError::TransactionError(
-            TransactionError::InstructionError(0, InstructionError::Custom(CODE))
+            TransactionError::InstructionError(0, InstructionError::Custom(CODE2))
         ))
     );
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [
@@ -303,12 +317,15 @@ async fn liquidates_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 }
 
 async fn withdraws_donations_that_came_from_liquidation(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    assert_eq!(get_sol_vault_balance(ptc, ctx).await, 1 + 10000 + 9 + 90000);
+    assert_eq!(
+        get_sol_vault_balance(ptc, ctx).await.unwrap(),
+        1 + 10000 + 9 + 90000
+    );
 
     withdraw_donations(ptc, ctx, 1).await.unwrap();
 
-    assert_eq!(get_sol_vault_balance(ptc, ctx).await, 9 + 90000);
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    assert_eq!(get_sol_vault_balance(ptc, ctx).await.unwrap(), 9 + 90000);
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [
@@ -327,7 +344,7 @@ async fn withdraws_donations_that_came_from_liquidation(ptc: &mut ProgramTestCon
 
     stop_campaign(ptc, ctx, 2).await.unwrap();
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
         active_campaigns[..len],
         [CampaignRecord {
@@ -339,7 +356,7 @@ async fn withdraws_donations_that_came_from_liquidation(ptc: &mut ProgramTestCon
 
     stop_campaign(ptc, ctx, 1).await.unwrap();
 
-    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await;
+    let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(active_campaigns[..len], []);
 
     withdraw_fees(ptc, ctx).await.unwrap();
@@ -347,8 +364,6 @@ async fn withdraws_donations_that_came_from_liquidation(ptc: &mut ProgramTestCon
 
 async fn sorts_top_with_more_than_10_donors(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     start_campaign(ptc, ctx).await.unwrap();
-
-    incentivize(ptc, ctx).await.unwrap();
 
     donate(ptc, ctx, &ctx.donors[14], 3, 14).await.unwrap();
     donate(ptc, ctx, &ctx.donors[2], 3, 2).await.unwrap();
@@ -364,7 +379,7 @@ async fn sorts_top_with_more_than_10_donors(ptc: &mut ProgramTestContext, ctx: &
     donate(ptc, ctx, &ctx.donors[4], 3, 4).await.unwrap();
     donate(ptc, ctx, &ctx.donors[3], 3, 3).await.unwrap();
 
-    let (campaign_top, len) = fetch_campaign_top(ptc, 3).await;
+    let (campaign_top, len) = fetch_campaign_top(ptc, 3).await.unwrap();
     assert_eq!(
         campaign_top[..len],
         [
@@ -410,10 +425,4 @@ async fn sorts_top_with_more_than_10_donors(ptc: &mut ProgramTestContext, ctx: &
             }
         ]
     );
-
-    let mut donors = heapless::Vec::<_, DONORS_LEN>::new();
-    for donor in &campaign_top[..len] {
-        donors.push(donor.donor).unwrap();
-    }
-    assert_eq!(get_seasonal_top(ptc, ctx).await, donors);
 }

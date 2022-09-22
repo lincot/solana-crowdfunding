@@ -9,5 +9,5 @@ solana program dump \
   TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA \
   target/deploy/spl_token.so \
   -um
-RUST_BACKTRACE=1 cargo test-bpf
+cargo test-bpf
 ```

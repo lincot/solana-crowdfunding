@@ -47,24 +47,19 @@ pub struct Initialize<'info> {
 
 pub fn initialize(
     ctx: Context<Initialize>,
-    incentive_cooldown: u32,
-    incentive_amount: u64,
+    reward_cooldown: u32,
+    reward_amount: u64,
     fee_basis_points: u16,
     fee_exemption_limit: u64,
     liquidation_limit: u64,
 ) -> Result<()> {
     let platform = &mut ctx.accounts.platform.load_init()?;
     platform.authority = ctx.accounts.platform_authority.key();
-    platform.incentive_cooldown = incentive_cooldown;
-    platform.incentive_amount = incentive_amount;
+    platform.reward_cooldown = reward_cooldown;
+    platform.reward_amount = reward_amount;
     platform.fee_basis_points = fee_basis_points;
     platform.fee_exemption_limit = fee_exemption_limit;
     platform.liquidation_limit = liquidation_limit;
 
-    emit!(InitializeEvent {});
-
     Ok(())
 }
-
-#[event]
-struct InitializeEvent {}

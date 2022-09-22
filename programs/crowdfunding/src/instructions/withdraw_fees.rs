@@ -17,10 +17,5 @@ pub fn withdraw_fees(ctx: Context<WithdrawFees>) -> Result<()> {
         &ctx.accounts.platform_authority.to_account_info(),
     )?;
 
-    emit!(WithdrawFeesEvent {});
-
     Ok(())
 }
-
-#[event]
-struct WithdrawFeesEvent {}

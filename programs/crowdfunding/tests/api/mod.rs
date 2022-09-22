@@ -1,101 +1,106 @@
 use crate::ctx::*;
 use anchor_lang::{prelude::*, InstructionData};
-use core::{cmp::Reverse, mem::size_of, result::Result};
+use core::{mem::size_of, result::Result};
 use crowdfunding::{config::*, state::*};
 use solana_program::{instruction::Instruction, system_program, sysvar};
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{signature::Keypair, signer::Signer, transaction::Transaction};
 use spl_associated_token_account::get_associated_token_address;
 
-pub async fn fetch<T: AccountDeserialize>(ptc: &mut ProgramTestContext, address: Pubkey) -> T {
+pub async fn fetch<T: AccountDeserialize>(
+    ptc: &mut ProgramTestContext,
+    address: Pubkey,
+) -> Result<T, BanksClientError> {
     T::try_deserialize(
         &mut &*ptc
             .banks_client
             .get_account(address)
-            .await
-            .unwrap()
-            .unwrap()
+            .await?
+            .ok_or(BanksClientError::ClientError("Account not present"))?
             .data,
     )
-    .unwrap()
+    .map_err(|_| BanksClientError::ClientError("Failed to deserialize account"))
 }
 
 pub async fn fetch_active_campaigns(
     ptc: &mut ProgramTestContext,
     ctx: &Ctx,
-) -> ([CampaignRecord; ACTIVE_CAMPAIGNS_CAPACITY], usize) {
-    let platform_data: Platform = fetch(ptc, ctx.platform).await;
-    (
-        platform_data.active_campaigns,
-        platform_data.active_campaigns_count as _,
-    )
+) -> Result<([CampaignRecord; ACTIVE_CAMPAIGNS_CAPACITY], usize), BanksClientError> {
+    let platform: Platform = fetch(ptc, ctx.platform).await?;
+    Ok((
+        platform.active_campaigns,
+        platform.active_campaigns_count as _,
+    ))
 }
 
 pub async fn fetch_platform_top(
     ptc: &mut ProgramTestContext,
     ctx: &Ctx,
-) -> ([DonorRecord; PLATFORM_TOP_CAPACITY], usize) {
-    let platform_data: Platform = fetch(ptc, ctx.platform).await;
-    (
-        platform_data.top,
-        platform_data
+) -> Result<([DonorRecord; PLATFORM_TOP_CAPACITY], usize), BanksClientError> {
+    let platform: Platform = fetch(ptc, ctx.platform).await?;
+    Ok((
+        platform.top,
+        platform
             .top
             .iter()
             .position(|d| d.donor.to_bytes() == [0; 32])
-            .unwrap_or(platform_data.top.len()),
-    )
+            .unwrap_or(platform.top.len()),
+    ))
+}
+
+pub async fn fetch_seasonal_top(
+    ptc: &mut ProgramTestContext,
+    ctx: &Ctx,
+) -> Result<([DonorRecord; SEASONAL_TOP_CAPACITY], usize), BanksClientError> {
+    let platform: Platform = fetch(ptc, ctx.platform).await?;
+    Ok((
+        platform.seasonal_top,
+        platform
+            .seasonal_top
+            .iter()
+            .position(|d| d.donor.to_bytes() == [0; 32])
+            .unwrap_or(platform.top.len()),
+    ))
 }
 
 pub async fn fetch_campaign_top(
     ptc: &mut ProgramTestContext,
     campaign_id: u16,
-) -> ([DonorRecord; CAMPAIGN_TOP_CAPACITY], usize) {
-    let campaign_data: Campaign = fetch(ptc, find_campaign(campaign_id)).await;
-    (
-        campaign_data.top,
-        campaign_data
+) -> Result<([DonorRecord; CAMPAIGN_TOP_CAPACITY], usize), BanksClientError> {
+    let campaign: Campaign = fetch(ptc, find_campaign(campaign_id)).await?;
+    Ok((
+        campaign.top,
+        campaign
             .top
             .iter()
             .position(|d| d.donor.to_bytes() == [0; 32])
-            .unwrap_or(campaign_data.top.len()),
-    )
+            .unwrap_or(campaign.top.len()),
+    ))
 }
 
-pub async fn get_seasonal_top(
+async fn get_balance_without_rent<T>(
     ptc: &mut ProgramTestContext,
-    ctx: &Ctx,
-) -> heapless::Vec<Pubkey, DONORS_LEN> {
-    let mut donors = heapless::Vec::<_, DONORS_LEN>::new();
-    for donor in &ctx.donors {
-        let donor: Donor = fetch(ptc, find_donor(donor.pubkey())).await;
-        if donor.donations_sum != donor.incentivized_donations_sum {
-            donors.push(donor).unwrap();
-        }
-    }
-    donors.sort_by_key(|d| Reverse(d.donations_sum - d.incentivized_donations_sum));
-
-    let mut res = heapless::Vec::new();
-    for donor in &donors[..donors.len().min(SEASONAL_TOP_CAPACITY)] {
-        res.push(donor.authority).unwrap();
-    }
-    res
-}
-
-async fn get_balance_without_rent<T>(ptc: &mut ProgramTestContext, address: Pubkey) -> u64 {
-    ptc.banks_client.get_balance(address).await.unwrap()
+    address: Pubkey,
+) -> Result<u64, BanksClientError> {
+    Ok(ptc.banks_client.get_balance(address).await?
         - ptc
             .banks_client
             .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(8 + size_of::<T>())
+            .await?
+            .minimum_balance(8 + size_of::<T>()))
 }
 
-pub async fn get_sol_vault_balance(ptc: &mut ProgramTestContext, ctx: &Ctx) -> u64 {
+pub async fn get_sol_vault_balance(
+    ptc: &mut ProgramTestContext,
+    ctx: &Ctx,
+) -> Result<u64, BanksClientError> {
     get_balance_without_rent::<Vault>(ptc, ctx.sol_vault).await
 }
 
-pub async fn get_fee_vault_balance(ptc: &mut ProgramTestContext, ctx: &Ctx) -> u64 {
+pub async fn get_fee_vault_balance(
+    ptc: &mut ProgramTestContext,
+    ctx: &Ctx,
+) -> Result<u64, BanksClientError> {
     get_balance_without_rent::<Vault>(ptc, ctx.fee_vault).await
 }
 
@@ -134,8 +139,8 @@ pub fn find_liquidation_vault(campaign_id: u16) -> Pubkey {
 pub async fn initialize(
     ptc: &mut ProgramTestContext,
     ctx: &Ctx,
-    incentive_cooldown: u32,
-    incentive_amount: u64,
+    reward_cooldown: u32,
+    reward_amount: u64,
     fee_basis_points: u16,
     fee_exemption_limit: u64,
     liquidation_limit: u64,
@@ -145,8 +150,8 @@ pub async fn initialize(
             &[Instruction {
                 program_id: crowdfunding::ID,
                 data: crowdfunding::instruction::Initialize {
-                    incentive_cooldown,
-                    incentive_amount,
+                    reward_cooldown,
+                    reward_amount,
                     fee_basis_points,
                     fee_exemption_limit,
                     liquidation_limit,
@@ -173,6 +178,7 @@ pub async fn initialize(
 
 pub async fn register_donor(
     ptc: &mut ProgramTestContext,
+    ctx: &Ctx,
     donor_authority: &Keypair,
 ) -> Result<(), BanksClientError> {
     ptc.banks_client
@@ -181,6 +187,7 @@ pub async fn register_donor(
                 program_id: crowdfunding::ID,
                 data: crowdfunding::instruction::RegisterDonor {}.data(),
                 accounts: crowdfunding::accounts::RegisterDonor {
+                    platform: ctx.platform,
                     donor: find_donor(donor_authority.pubkey()),
                     donor_authority: donor_authority.pubkey(),
                     system_program: system_program::ID,
@@ -198,8 +205,8 @@ pub async fn start_campaign(
     ptc: &mut ProgramTestContext,
     ctx: &Ctx,
 ) -> Result<(), BanksClientError> {
-    let platform_data: Platform = fetch(ptc, ctx.platform).await;
-    let id = platform_data.campaigns_count;
+    let platform: Platform = fetch(ptc, ctx.platform).await?;
+    let id = platform.campaigns_count;
 
     ptc.banks_client
         .process_transaction(Transaction::new_signed_with_payer(
@@ -307,23 +314,21 @@ pub async fn donate_with_referer(
         .await
 }
 
-pub async fn incentivize(ptc: &mut ProgramTestContext, ctx: &Ctx) -> Result<(), BanksClientError> {
-    let mut accounts = crowdfunding::accounts::Incentivize {
+pub async fn record_donors(
+    ptc: &mut ProgramTestContext,
+    ctx: &Ctx,
+) -> Result<(), BanksClientError> {
+    let clock: Clock = ptc.banks_client.get_sysvar().await.unwrap();
+    ptc.warp_to_slot(clock.slot + 1).unwrap();
+
+    let mut accounts = crowdfunding::accounts::RecordDonors {
         platform: ctx.platform,
-        platform_authority: ctx.platform_authority.pubkey(),
-        chrt_mint: ctx.chrt_mint,
-        token_program: anchor_spl::token::ID,
     }
     .to_account_metas(None);
 
-    for donor in get_seasonal_top(ptc, ctx).await {
+    for donor in &ctx.donors {
         accounts.push(AccountMeta {
-            pubkey: find_donor(donor),
-            is_signer: false,
-            is_writable: true,
-        });
-        accounts.push(AccountMeta {
-            pubkey: get_associated_token_address(&donor, &ctx.chrt_mint),
+            pubkey: find_donor(donor.pubkey()),
             is_signer: false,
             is_writable: true,
         });
@@ -333,7 +338,45 @@ pub async fn incentivize(ptc: &mut ProgramTestContext, ctx: &Ctx) -> Result<(), 
         .process_transaction(Transaction::new_signed_with_payer(
             &[Instruction {
                 program_id: crowdfunding::ID,
-                data: crowdfunding::instruction::Incentivize {}.data(),
+                data: crowdfunding::instruction::RecordDonors {}.data(),
+                accounts,
+            }],
+            Some(&ctx.platform_authority.pubkey()),
+            &[&ctx.platform_authority],
+            ptc.last_blockhash,
+        ))
+        .await
+}
+
+pub async fn drop_rewards(ptc: &mut ProgramTestContext, ctx: &Ctx) -> Result<(), BanksClientError> {
+    let mut accounts = crowdfunding::accounts::DropRewards {
+        platform: ctx.platform,
+        chrt_mint: ctx.chrt_mint,
+        token_program: anchor_spl::token::ID,
+    }
+    .to_account_metas(None);
+
+    let platform: Platform = fetch(ptc, ctx.platform).await?;
+    let seasonal_top = platform.seasonal_top;
+
+    for donor in seasonal_top {
+        accounts.push(AccountMeta {
+            pubkey: find_donor(donor.donor),
+            is_signer: false,
+            is_writable: true,
+        });
+        accounts.push(AccountMeta {
+            pubkey: get_associated_token_address(&donor.donor, &ctx.chrt_mint),
+            is_signer: false,
+            is_writable: true,
+        });
+    }
+
+    ptc.banks_client
+        .process_transaction(Transaction::new_signed_with_payer(
+            &[Instruction {
+                program_id: crowdfunding::ID,
+                data: crowdfunding::instruction::DropRewards {}.data(),
                 accounts,
             }],
             Some(&ctx.platform_authority.pubkey()),
@@ -373,6 +416,9 @@ pub async fn liquidate_campaign(
     ctx: &Ctx,
     campaign_id: u16,
 ) -> Result<(), BanksClientError> {
+    let clock: Clock = ptc.banks_client.get_sysvar().await.unwrap();
+    ptc.warp_to_slot(clock.slot + 1).unwrap();
+
     ptc.banks_client
         .process_transaction(Transaction::new_signed_with_payer(
             &[Instruction {
