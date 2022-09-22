@@ -51,6 +51,7 @@ pub struct Campaign {
 
 #[account(zero_copy)]
 #[derive(Debug)]
+#[repr(packed)]
 pub struct Donor {
     pub authority: Pubkey,
     pub donations_sum: u64,

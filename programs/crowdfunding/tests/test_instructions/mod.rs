@@ -25,37 +25,39 @@ pub async fn test_instructions() {
 }
 
 async fn test_initialize(ptc: &mut ProgramTestContext, ctx: &Ctx) {
-    let reward_cooldown = 10;
-    let reward_amount = 1000;
-    let fee_basis_points = 300;
-    let fee_exemption_limit = 1000;
-    let liquidation_limit = 2000;
+    let reward_cooldown_ = 10;
+    let reward_amount_ = 1000;
+    let fee_basis_points_ = 300;
+    let fee_exemption_limit_ = 1000;
+    let liquidation_limit_ = 2000;
 
     initialize(
         ptc,
         ctx,
-        reward_cooldown,
-        reward_amount,
-        fee_basis_points,
-        fee_exemption_limit,
-        liquidation_limit,
+        reward_cooldown_,
+        reward_amount_,
+        fee_basis_points_,
+        fee_exemption_limit_,
+        liquidation_limit_,
     )
     .await
     .unwrap();
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
-
-    assert_eq!(platform.authority, ctx.platform_authority.pubkey());
-    let platform_reward_cooldown = platform.reward_cooldown;
-    assert_eq!(platform_reward_cooldown, reward_cooldown);
-    let platform_reward_amount = platform.reward_amount;
-    assert_eq!(platform_reward_amount, reward_amount);
-    let platform_fee_basis_points = platform.fee_basis_points;
-    assert_eq!(platform_fee_basis_points, fee_basis_points);
-    let platform_fee_exemption_limit = platform.fee_exemption_limit;
-    assert_eq!(platform_fee_exemption_limit, fee_exemption_limit);
-    let platform_liquidation_limit = platform.liquidation_limit;
-    assert_eq!(platform_liquidation_limit, liquidation_limit);
+    let Platform {
+        authority,
+        reward_amount,
+        reward_cooldown,
+        fee_basis_points,
+        fee_exemption_limit,
+        liquidation_limit,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
+    assert_eq!(authority, ctx.platform_authority.pubkey());
+    assert_eq!(reward_cooldown, reward_cooldown_);
+    assert_eq!(reward_amount, reward_amount_);
+    assert_eq!(fee_basis_points, fee_basis_points_);
+    assert_eq!(fee_exemption_limit, fee_exemption_limit_);
+    assert_eq!(liquidation_limit, liquidation_limit_);
 }
 
 async fn test_register_donor(ptc: &mut ProgramTestContext, ctx: &Ctx) {
@@ -63,19 +65,18 @@ async fn test_register_donor(ptc: &mut ProgramTestContext, ctx: &Ctx) {
         register_donor(ptc, ctx, donor).await.unwrap();
     }
 
-    let donor: Donor = fetch(ptc, find_donor(ctx.donors[0].pubkey()))
+    let Donor { authority, .. } = fetch(ptc, find_donor(ctx.donors[0].pubkey()))
         .await
         .unwrap();
-    assert_eq!(donor.authority, ctx.donors[0].pubkey());
+    assert_eq!(authority, ctx.donors[0].pubkey());
 }
 
 async fn test_start_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     start_campaign(ptc, ctx).await.unwrap();
 
-    let campaign: Campaign = fetch(ptc, find_campaign(0)).await.unwrap();
-    assert_eq!(campaign.authority, ctx.campaign_authority.pubkey());
-    let campaign_id = campaign.id;
-    assert_eq!(campaign_id, 0);
+    let Campaign { authority, id, .. } = fetch(ptc, find_campaign(0)).await.unwrap();
+    assert_eq!(authority, ctx.campaign_authority.pubkey());
+    assert_eq!(id, 0);
 
     let (active_campaigns, len) = fetch_active_campaigns(ptc, ctx).await.unwrap();
     assert_eq!(
@@ -110,29 +111,31 @@ async fn test_start_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 async fn test_donate(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     donate(ptc, ctx, &ctx.donors[0], 0, 100).await.unwrap();
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
-    let sum_of_all_donations = platform.sum_of_all_donations;
+    let Platform {
+        sum_of_all_donations,
+        sum_of_active_campaign_donations,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
     assert_eq!(sum_of_all_donations, 97);
-    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
     assert_eq!(sum_of_active_campaign_donations, 97);
 
-    let donor: Donor = fetch(ptc, find_donor(ctx.donors[0].pubkey()))
+    let Donor { donations_sum, .. } = fetch(ptc, find_donor(ctx.donors[0].pubkey()))
         .await
         .unwrap();
-    assert_eq!(donor.donations_sum, 97);
+    assert_eq!(donations_sum, 97);
 
-    let donor_donations_to_campaign: Donations = fetch(
+    let Donations { donations_sum, .. } = fetch(
         ptc,
         find_donor_donations_to_campaign(ctx.donors[0].pubkey(), 0),
     )
     .await
     .unwrap();
-    assert_eq!(donor_donations_to_campaign.donations_sum, 97);
+    assert_eq!(donations_sum, 97);
 
-    let total_donations_to_campaign: Donations = fetch(ptc, find_total_donations_to_campaign(0))
+    let Donations { donations_sum, .. } = fetch(ptc, find_total_donations_to_campaign(0))
         .await
         .unwrap();
-    assert_eq!(total_donations_to_campaign.donations_sum, 97);
+    assert_eq!(donations_sum, 97);
 
     assert_eq!(get_sol_vault_balance(ptc, ctx).await.unwrap(), 97);
     assert_eq!(get_fee_vault_balance(ptc, ctx).await.unwrap(), 3);
@@ -186,29 +189,31 @@ async fn test_donate_with_referer(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     .unwrap();
     assert_eq!(donor_chrt.amount, 1);
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
-    let sum_of_all_donations = platform.sum_of_all_donations;
+    let Platform {
+        sum_of_all_donations,
+        sum_of_active_campaign_donations,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
     assert_eq!(sum_of_all_donations, 97 + 9700);
-    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
     assert_eq!(sum_of_active_campaign_donations, 97 + 9700);
 
-    let donor: Donor = fetch(ptc, find_donor(ctx.donors[1].pubkey()))
+    let Donor { donations_sum, .. } = fetch(ptc, find_donor(ctx.donors[1].pubkey()))
         .await
         .unwrap();
-    assert_eq!(donor.donations_sum, 9700);
+    assert_eq!(donations_sum, 9700);
 
-    let donor_donations_to_campaign: Donations = fetch(
+    let Donations { donations_sum, .. } = fetch(
         ptc,
         find_donor_donations_to_campaign(ctx.donors[1].pubkey(), 0),
     )
     .await
     .unwrap();
-    assert_eq!(donor_donations_to_campaign.donations_sum, 9700);
+    assert_eq!(donations_sum, 9700);
 
-    let total_donations_to_campaign: Donations = fetch(ptc, find_total_donations_to_campaign(0))
+    let Donations { donations_sum, .. } = fetch(ptc, find_total_donations_to_campaign(0))
         .await
         .unwrap();
-    assert_eq!(total_donations_to_campaign.donations_sum, 97 + 9700);
+    assert_eq!(donations_sum, 97 + 9700);
 
     assert_eq!(get_sol_vault_balance(ptc, ctx).await.unwrap(), 97 + 9700);
     assert_eq!(get_fee_vault_balance(ptc, ctx).await.unwrap(), 3 + 300);
@@ -264,13 +269,16 @@ async fn test_donate_with_referer(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 async fn test_record_donors(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     record_donors(ptc, ctx).await.unwrap();
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
+    let Platform {
+        reward_procedure_is_in_process,
+        last_reward_procedure_ts,
+        donors_recorded,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
     let clock: Clock = ptc.banks_client.get_sysvar().await.unwrap();
 
-    assert!(platform.reward_procedure_is_in_process);
-    let last_reward_procedure_ts = platform.last_reward_procedure_ts;
+    assert!(reward_procedure_is_in_process);
     assert_eq!(last_reward_procedure_ts, clock.unix_timestamp as u32);
-    let donors_recorded = platform.donors_recorded;
     assert_eq!(donors_recorded, ctx.donors.len() as u32);
 
     let (seasonal_top, len) = fetch_seasonal_top(ptc, ctx).await.unwrap();
@@ -292,10 +300,12 @@ async fn test_record_donors(ptc: &mut ProgramTestContext, ctx: &Ctx) {
 async fn test_drop_rewards(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     drop_rewards(ptc, ctx).await.unwrap();
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
-
-    assert!(!platform.reward_procedure_is_in_process);
-    let donors_recorded = platform.donors_recorded;
+    let Platform {
+        reward_procedure_is_in_process,
+        donors_recorded,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
+    assert!(!reward_procedure_is_in_process);
     assert_eq!(donors_recorded, 0);
 
     let (seasonal_top, len) = fetch_seasonal_top(ptc, ctx).await.unwrap();
@@ -318,10 +328,14 @@ async fn test_drop_rewards(ptc: &mut ProgramTestContext, ctx: &Ctx) {
     assert_eq!(donor_chrt.amount, 1000);
 
     for donor in [0, 1] {
-        let donor: Donor = fetch(ptc, find_donor(ctx.donors[donor].pubkey()))
+        let Donor {
+            rewarded_donations_sum,
+            donations_sum,
+            ..
+        } = fetch(ptc, find_donor(ctx.donors[donor].pubkey()))
             .await
             .unwrap();
-        assert_eq!(donor.rewarded_donations_sum, donor.donations_sum);
+        assert_eq!(rewarded_donations_sum, donations_sum);
     }
 
     const CODE: u32 = 6000 + CrowdfundingError::RewardCooldown as u32;
@@ -387,8 +401,10 @@ async fn test_stop_campaign(ptc: &mut ProgramTestContext, ctx: &Ctx) {
         }]
     );
 
-    let platform: Platform = fetch(ptc, ctx.platform).await.unwrap();
-    let sum_of_active_campaign_donations = platform.sum_of_active_campaign_donations;
+    let Platform {
+        sum_of_active_campaign_donations,
+        ..
+    } = fetch(ptc, ctx.platform).await.unwrap();
     assert_eq!(sum_of_active_campaign_donations, 0);
 
     stop_campaign(ptc, ctx, 1).await.unwrap();
