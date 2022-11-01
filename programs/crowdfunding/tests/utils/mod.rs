@@ -6,14 +6,8 @@ use solana_program_test::*;
 use solana_sdk::{signature::Keypair, signer::Signer, transaction::Transaction};
 
 pub async fn get_ptc_and_ctx() -> (ProgramTestContext, Ctx) {
-    let mut ptc = ProgramTest::new("crowdfunding", crowdfunding::ID, None);
-    ptc.add_program(
-        "spl_associated_token_account",
-        spl_associated_token_account::ID,
-        None,
-    );
-    ptc.add_program("spl_token", anchor_spl::token::ID, None);
-    let mut ptc = ptc.start_with_context().await;
+    let pt = ProgramTest::new("crowdfunding", crowdfunding::ID, None);
+    let mut ptc = pt.start_with_context().await;
     let ctx = Ctx::new();
     ctx.airdrop(&mut ptc).await;
     (ptc, ctx)

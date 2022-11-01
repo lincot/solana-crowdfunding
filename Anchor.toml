@@ -2,7 +2,7 @@
 skip-lint = true
 
 [programs.localnet]
-crowdfunding = "Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA"
+crowdfunding = "BkBYehfNc7WBa6MmmFz3mMzwBduQLBTzboA3e6JaBGYR"
 
 [test]
 startup_wait = 30000

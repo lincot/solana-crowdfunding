@@ -7,7 +7,7 @@ mod instructions;
 pub mod state;
 mod utils;
 
-declare_id!("Gf3bXGS7iA2EUxzXs1xS6qwZBPGS8idyqMNitQ5NKDSA");
+declare_id!("BkBYehfNc7WBa6MmmFz3mMzwBduQLBTzboA3e6JaBGYR");
 
 #[program]
 pub mod crowdfunding {

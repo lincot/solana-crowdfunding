@@ -19,10 +19,10 @@ default = []
 [dependencies]
 anchor-lang = { version = "0.25.0", features = ["init-if-needed"] }
 anchor-spl = "0.25.0"
-solana-program = "1.10.29"
+solana-program = "1.10.34"
 heapless = "0.7.16"
 
 [dev-dependencies]
-solana-program-test = "1.10.29"
-solana-sdk = "1.10.29"
+solana-program-test = "1.10.34"
+solana-sdk = "1.10.34"
 spl-associated-token-account = "1.0.5"
